@@ -3,6 +3,12 @@
 # dependencies
 node_modules/
 
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
 # Expo
 .expo/
 dist/
@@ -41,3 +47,7 @@ example
 # generated native folders
 /ios
 /android
+
+.env
+AGENT.md
+CLAUDE.md

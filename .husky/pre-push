@@ -1,0 +1,40 @@
+#!/usr/bin/env sh
+# Filet de securite : re-verifie le format des commits sur le point d'etre
+# pousses (utile si un commit a ete cree avec --no-verify, ou si les hooks
+# locaux n'etaient pas encore installes au moment du commit).
+#
+# On ne verifie que les commits en amont de l'historique deja adopte par la
+# convention (a partir de "origin/develop"), pour ne jamais bloquer un push a
+# cause de commits historiques anterieurs a la mise en place de cette regle.
+
+default_branch="develop"
+zero="0000000000000000000000000000000000000000"
+
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "$local_sha" = "$zero" ]; then
+    # Suppression de branche distante : rien a verifier
+    continue
+  fi
+
+  if [ "$remote_sha" != "$zero" ]; then
+    # Branche deja poussee : on ne verifie que les nouveaux commits
+    from_ref="$remote_sha"
+  else
+    # Premier push de cette branche : on cherche le point de divergence avec develop
+    from_ref=$(git merge-base "$local_sha" "origin/$default_branch" 2>/dev/null)
+    if [ -z "$from_ref" ]; then
+      # Pas de base commune (ex: origin/develop non recupere localement) :
+      # on se limite au dernier commit par securite plutot que de bloquer.
+      from_ref="$local_sha~1"
+    fi
+  fi
+
+  npx --no -- commitlint --from "$from_ref" --to "$local_sha" || exit 1
+done
+
+exit 0
+
+
+
+
+
