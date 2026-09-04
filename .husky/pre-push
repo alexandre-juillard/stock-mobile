@@ -6,35 +6,35 @@
 # On ne verifie que les commits en amont de l'historique deja adopte par la
 # convention (a partir de "origin/develop"), pour ne jamais bloquer un push a
 # cause de commits historiques anterieurs a la mise en place de cette regle.
-
 default_branch="develop"
 zero="0000000000000000000000000000000000000000"
-
 while read local_ref local_sha remote_ref remote_sha; do
   if [ "$local_sha" = "$zero" ]; then
     # Suppression de branche distante : rien a verifier
     continue
   fi
-
   if [ "$remote_sha" != "$zero" ]; then
     # Branche deja poussee : on ne verifie que les nouveaux commits
     from_ref="$remote_sha"
   else
-    # Premier push de cette branche : on cherche le point de divergence avec develop
-    from_ref=$(git merge-base "$local_sha" "origin/$default_branch" 2>/dev/null)
-    if [ -z "$from_ref" ]; then
+    # Premier push de cette branche : on cherche le point de divergence avec develop.
+    # "|| true" est indispensable ici : ce hook s'execute sous "sh -e" (voir .husky/_/h),
+    # et merge-base echoue normalement tant que origin/develop n'existe pas encore
+    # (tout premier push du projet) ; sans "|| true", ce code d'erreur ferait
+    # avorter tout le script avant d'atteindre le repli ci-dessous.
+    from_ref=$(git merge-base "$local_sha" "origin/$default_branch" 2>/dev/null) || true
+    if [ -z "$from_ref" ] || ! git rev-parse -q --verify "$from_ref" >/dev/null 2>&1; then
       # Pas de base commune (ex: origin/develop non recupere localement) :
-      # on se limite au dernier commit par securite plutot que de bloquer.
-      from_ref="$local_sha~1"
+      # on se limite au dernier commit par securite plutot que de bloquer, sauf
+      # si ce commit est lui-meme la racine du depot (pas de parent) : dans ce
+      # cas il n'y a rien de comparable, on laisse simplement passer.
+      if git rev-parse -q --verify "$local_sha~1" >/dev/null 2>&1; then
+        from_ref="$local_sha~1"
+      else
+        continue
+      fi
     fi
   fi
-
   npx --no -- commitlint --from "$from_ref" --to "$local_sha" || exit 1
 done
-
 exit 0
-
-
-
-
-

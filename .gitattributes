@@ -1,0 +1,7 @@
+# Les scripts Husky sont des scripts POSIX sh : des fins de ligne CRLF (introduites
+# par core.autocrlf=true, courant sous Git for Windows) cassent silencieusement les
+# comparaisons de chaines dans ces scripts (ex: un "\r" parasite dans une variable).
+# On force donc LF quelle que soit la configuration locale de l'utilisateur.
+.husky/* text eol=lf
+*.sh text eol=lf
+
