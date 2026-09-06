@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { Link, useRouter, type Href } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
@@ -20,10 +20,20 @@ const OAUTH_LINK_ROUTE = '/(auth)/oauth2-link-confirmation' as Href;
 
 export default function LoginScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ notice?: string | string[] }>();
   const { setSession } = useAuth();
   const netInfo = useNetInfo();
 
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [isRouteNoticeDismissed, setRouteNoticeDismissed] = useState(false);
+
+  const routeNotice =
+    (Array.isArray(params.notice) ? params.notice[0] : params.notice) === 'reset-link-sent'
+      ? 'Lien de reinitialisation envoye. Verifie ta boite mail.'
+      : null;
+
+  const displayedSnackbarMessage =
+    snackbarMessage ?? (!isRouteNoticeDismissed ? routeNotice : null);
 
   const { control, handleSubmit, formState } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -182,8 +192,18 @@ export default function LoginScreen() {
         </Link>
       </View>
 
-      <Snackbar visible={Boolean(snackbarMessage)} onDismiss={() => setSnackbarMessage(null)} duration={4000}>
-        {snackbarMessage}
+      <Snackbar
+        visible={Boolean(displayedSnackbarMessage)}
+        onDismiss={() => {
+          if (snackbarMessage) {
+            setSnackbarMessage(null);
+            return;
+          }
+
+          setRouteNoticeDismissed(true);
+        }}
+        duration={4000}>
+        {displayedSnackbarMessage}
       </Snackbar>
     </ScreenShell>
   );

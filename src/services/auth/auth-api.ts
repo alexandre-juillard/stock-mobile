@@ -2,8 +2,14 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
-import { login, register, resendConfirmation } from '@/services/api/generated/authentification/authentification';
+import {
+  forgotPassword,
+  login,
+  register,
+  resendConfirmation,
+} from '@/services/api/generated/authentification/authentification';
 import type {
+  ForgotPasswordRequest,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -127,6 +133,10 @@ export async function registerWithEmail(request: RegisterRequest): Promise<UserR
 
 export async function resendConfirmationEmail(request: ResendConfirmationRequest): Promise<void> {
   await resendConfirmation(request);
+}
+
+export async function forgotPasswordWithEmail(request: ForgotPasswordRequest): Promise<void> {
+  await forgotPassword(request);
 }
 
 export async function loginWithGoogle(): Promise<OAuthExchangeResult> {
