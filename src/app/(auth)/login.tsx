@@ -25,15 +25,18 @@ export default function LoginScreen() {
   const netInfo = useNetInfo();
 
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  const [isRouteNoticeDismissed, setRouteNoticeDismissed] = useState(false);
+  const [dismissedRouteNoticeKey, setDismissedRouteNoticeKey] = useState<string | null>(null);
 
+  const routeNoticeKey = Array.isArray(params.notice) ? params.notice[0] : params.notice;
   const routeNotice =
-    (Array.isArray(params.notice) ? params.notice[0] : params.notice) === 'reset-link-sent'
+    routeNoticeKey === 'reset-link-sent'
       ? 'Lien de reinitialisation envoye. Verifie ta boite mail.'
-      : null;
+      : routeNoticeKey === 'password-reset-success'
+        ? 'Mot de passe mis a jour. Tu peux te connecter.'
+        : null;
 
   const displayedSnackbarMessage =
-    snackbarMessage ?? (!isRouteNoticeDismissed ? routeNotice : null);
+    snackbarMessage ?? (routeNotice && dismissedRouteNoticeKey !== routeNoticeKey ? routeNotice : null);
 
   const { control, handleSubmit, formState } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -200,7 +203,9 @@ export default function LoginScreen() {
             return;
           }
 
-          setRouteNoticeDismissed(true);
+          if (routeNoticeKey) {
+            setDismissedRouteNoticeKey(routeNoticeKey);
+          }
         }}
         duration={4000}>
         {displayedSnackbarMessage}

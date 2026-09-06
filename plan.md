@@ -217,14 +217,16 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 
 **API:** `POST /api/auth/reset-password`
 
-- [ ] Lire `token` depuis deep link/email.
-- [ ] Saisie nouveau mot de passe + confirmation.
+- [x] Lire `token` depuis deep link/email.
+- [x] Saisie nouveau mot de passe + confirmation.
 
 **Offline:**
 
 - Preferer online only (token sensible et expirant).
 
 **DoD:** reset valide puis retour login.
+
+Note verification: logique implementee et validee au typecheck/lint; test de parcours complet sur device/emulateur a confirmer.
 
 ### E06 - Confirmation liaison compte Google
 

@@ -6,6 +6,7 @@ import {
   forgotPassword,
   login,
   register,
+  resetPassword,
   resendConfirmation,
 } from '@/services/api/generated/authentification/authentification';
 import type {
@@ -13,6 +14,7 @@ import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
+  ResetPasswordRequest,
   ResendConfirmationRequest,
   UserResponse,
 } from '@/services/api/generated/model';
@@ -137,6 +139,10 @@ export async function resendConfirmationEmail(request: ResendConfirmationRequest
 
 export async function forgotPasswordWithEmail(request: ForgotPasswordRequest): Promise<void> {
   await forgotPassword(request);
+}
+
+export async function resetPasswordWithToken(request: ResetPasswordRequest): Promise<void> {
+  await resetPassword(request);
 }
 
 export async function loginWithGoogle(): Promise<OAuthExchangeResult> {
