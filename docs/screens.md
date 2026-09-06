@@ -190,32 +190,17 @@ en cohérence avec la palette et le langage de forme arrondi définis ci-dessus.
 2. Éventuel usage futur de l'accent Recettes réservé (`#E76F51`).
 
 ## Idées de nom d'application
-Autour du garde-manger / stock
-
-Gardo — clin d'œil à "garde-manger", court et facile à retenir
-Placardo — jeu sur "placard", sonorité sympa
-Stocko — simple, direct, moderne
-Cagette — mot français chaleureux, évoque les provisions fraîches
-
 Autour de la fraîcheur / anti-gaspi
 
 Fraîcheur+
 Zérodate — joue sur "zéro date de péremption dépassée"
-Ravito (de "ravitaillement") — court, dynamique, évoque le réapprovisionnement automatique
 Gaspizéro — positionne clairement l'appli sur la lutte anti-gaspillage
 
 Autour de l'intelligence / praticité
 
-Provisia — sonorité un peu premium, évoque "provisions" + suffixe tech
 Stockly — suffixe "-ly" très app moderne
 Frigolino — plus ludique/familial
 Pantrix — anglicisme mais sonne bien à l'international si vous visez plusieurs pays
-
-Autour des recettes (puisque c'est un axe fort de l'appli)
-
-Cuizy
-Miamly
-CookStock
 
 1. Noms évocateurs & conviviaux (Univers cuisine / maison)
 Noms chaleureux, faciles à retenir, qui sonnent comme un assistant du quotidien.
@@ -225,6 +210,9 @@ Gourmi : Évoque la gourmandise tout en restant court et accessible.
 Plato : Référence au plat cuisiné et au plateau, facile à prononcer et très moderne.
 Popote : Très chaleureux et français, évoque la cuisine du quotidien sans prise de tête.
 Kitchi : Dérivé de kitchen, ludique et dynamique.
+
+PantryFlow (j'aime l'idée de "flow" pour le côté pratique et fluide de l'app)
+PantryPal (j'aime l'idée de "pal" pour le côté compagnon de cuisine)
 
 2. Noms axés sur l'anti-gaspillage & l'action
 Mettent l'accent sur le suivi des dates, la gestion intelligente et l'économie au quotidien.
@@ -239,6 +227,10 @@ Noms qui englobent tout le cercle vertueux de ton application (du placard à la 
 Placard & Poêle : Très visuel et convivial, montre le lien direct entre les ingrédients disponibles et la cuisine.
 LoopEats / FoodLoop : Évoque la boucle complète : achat $\rightarrow$ stock $\rightarrow$ recette $\rightarrow$ réapprovisionnement.
 MenuStock : Clair et pragmatique pour le référencement sur les stores (ASO).
+
+## Noms retenus pour la V1
+- **PantryFlow** : met l'accent sur le côté pratique et fluide de l'app, tout en restant international.
+- **PantryPal** : met l'accent sur le côté compagnon de cuisine, chaleureux et accessible.
 
 
 
