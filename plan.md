@@ -144,11 +144,11 @@ Convention statuts:
 
 **API:** `POST /api/auth/login`, `GET /api/auth/oauth2/google`, `GET /api/auth/oauth2/exchange`
 
-- [ ] Form email/password/rememberMe.
-- [ ] Login classique + stockage tokens SecureStore.
-- [ ] Bouton Google: ouverture navigateur systeme, deep link callback, exchange code.
-- [ ] Gestion cas `LINK_REQUIRED` (rediriger vers E06).
-- [ ] Gestion erreurs i18n API (`ApiError`).
+- [x] Form email/password/rememberMe.
+- [x] Login classique + stockage tokens SecureStore.
+- [x] Bouton Google: ouverture navigateur systeme, deep link callback, exchange code.
+- [x] Gestion cas `LINK_REQUIRED` (rediriger vers E06).
+- [x] Gestion erreurs i18n API (`ApiError`).
 
 **Offline:**
 
@@ -156,6 +156,8 @@ Convention statuts:
 - Session existante conservee localement si deja connecte.
 
 **DoD:** login classique + Google fonctionne sur device/emulateur.
+
+Note verification: logique implementee et validee au typecheck/lint; test de parcours complet sur device/emulateur a confirmer.
 
 ### E02 - Inscription
 
@@ -419,9 +421,9 @@ Convention statuts:
 
 ### T02 - Auth/session
 
-- [ ] Access token memory + refresh token SecureStore.
+- [x] Access token memory + refresh token SecureStore.
 - [ ] Refresh automatique sur 401 (hors endpoints publics).
-- [ ] Garde de route `(auth)` vs `(tabs)`.
+- [x] Garde de route `(auth)` vs `(tabs)`.
 
 ### T03 - Offline engine
 
@@ -432,7 +434,7 @@ Convention statuts:
 
 ### T04 - UX/UI system
 
-- [ ] Theme Paper light/dark selon palette `docs/screens.md`.
+- [x] Theme Paper light/dark selon palette `docs/screens.md`.
 - [ ] Composants Paper standards (Card, FAB, TextInput, Dialog, Snackbar, Chip, List).
 - [ ] Accessibilite: icone + texte pour etats expiration (jamais couleur seule).
 
