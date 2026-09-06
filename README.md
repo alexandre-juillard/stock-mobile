@@ -22,6 +22,10 @@ Copy-Item .env.example .env
 - `http://10.0.2.2:8080` depuis emulateur Android,
 - IP LAN de ta machine depuis device physique.
 
+3. Verifier aussi la redirection OAuth2 mobile:
+
+- `EXPO_PUBLIC_OAUTH_REDIRECT_URI=stockshop://oauth2/callback`
+
 ## Commandes utiles
 
 ```powershell
