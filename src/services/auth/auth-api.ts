@@ -2,8 +2,8 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
-import { login } from '@/services/api/generated/authentification/authentification';
-import type { LoginRequest, LoginResponse } from '@/services/api/generated/model';
+import { login, register } from '@/services/api/generated/authentification/authentification';
+import type { LoginRequest, LoginResponse, RegisterRequest, UserResponse } from '@/services/api/generated/model';
 import { apiFetch } from '@/services/api/http-client';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -58,6 +58,10 @@ function isLoginResponse(value: unknown): value is LoginResponse {
   return typeof payload.accessToken === 'string' && typeof payload.refreshToken === 'string';
 }
 
+function isUserResponse(value: unknown): value is UserResponse {
+  return typeof value === 'object' && value !== null;
+}
+
 function buildOAuthGoogleUrl(): string {
   return `${ensureApiBaseUrl()}/api/auth/oauth2/google`;
 }
@@ -99,6 +103,17 @@ export async function loginWithPassword(request: LoginRequest): Promise<LoginRes
 
   if (!isLoginResponse(payload)) {
     throw new Error('Reponse de connexion invalide');
+  }
+
+  return payload;
+}
+
+export async function registerWithEmail(request: RegisterRequest): Promise<UserResponse> {
+  const response = await register(request);
+  const payload = unwrapData(response);
+
+  if (!isUserResponse(payload)) {
+    throw new Error('Reponse d inscription invalide');
   }
 
   return payload;

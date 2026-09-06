@@ -165,9 +165,9 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 
 **API:** `POST /api/auth/register`
 
-- [ ] Form prenom/nom/email/password.
-- [ ] Validation locale + erreurs backend.
-- [ ] Redirection vers E03 apres succes.
+- [x] Form prenom/nom/email/password.
+- [x] Validation locale + erreurs backend.
+- [x] Redirection vers E03 apres succes.
 
 **Offline:**
 
@@ -175,6 +175,8 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 - UX: afficher `Inscription en attente` si soumise offline.
 
 **DoD:** inscription cree un compte et affiche etat verification email.
+
+Note verification: logique implementee et validee au typecheck/lint; test de parcours complet sur device/emulateur a confirmer.
 
 ### E03 - Verification email en attente
 
