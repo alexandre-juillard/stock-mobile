@@ -14,7 +14,7 @@ tags:
     "android",
     "cross-platform",
   ]
-lastUpdated: "2024-12-19"
+lastUpdated: "2026-09-04"
 ---
 
 # TypeScript React Native Expo Mobile Development Guide
@@ -25,45 +25,51 @@ This comprehensive guide outlines best practices for developing modern mobile ap
 
 ## Tech Stack
 
-- **Framework**: React Native with Expo SDK 49+
-- **Language**: TypeScript with strict mode
-- **Navigation**: React Navigation 6+ / Expo Router
-- **State Management**: React Context + useReducer / Zustand / Redux Toolkit
-- **Data Fetching**: React Query (TanStack Query)
-- **Styling**: Styled-components / NativeWind (Tailwind CSS)
-- **Animation**: React Native Reanimated 3+ / React Native Gesture Handler
-- **Testing**: Jest + React Native Testing Library + Detox
-- **Storage**: Expo SecureStore / React Native Encrypted Storage
+- **Framework**: React Native 0.86 with Expo SDK 57 (New Architecture, enabled by default and no longer optional since SDK 55+)
+- **Language**: TypeScript 6.0 with strict mode
+- **Navigation**: Expo Router 6 (file-based routing under `src/app/`) — no manual React Navigation setup (Expo Router wraps it internally)
+- **State Management**: React Query for server state; React Context + useReducer for auth/session state; Zustand for lightweight client-only UI state if needed (Redux Toolkit is overkill for this app's scope)
+- **Data Fetching**: React Query (TanStack Query) v5, with API hooks generated from the backend OpenAPI spec via `orval` rather than hand-written fetch clients
+- **Styling**: `StyleSheet.create` (React Native core) as the default — see all examples below. A component library (e.g. React Native Paper, Material Design 3) may be layered on top for ready-made UI primitives; NativeWind/Tailwind is not used in this project
+- **Animation**: React Native Reanimated 4+ (requires the companion `react-native-worklets` package since v4) / React Native Gesture Handler
+- **Testing**: Jest + React Native Testing Library (unit/integration) + Maestro (E2E — preferred over Detox for Expo-managed apps, no native build/eject required)
+- **Storage**: Expo SecureStore (tokens) + AsyncStorage (non-sensitive cached data)
 
 ## Project Structure
 
+Actual layout of this project (`stock-mobile`) — Expo Router auto-detects `src/app` when there is
+no `app/` directory at the repository root, which is the convention used here:
+
 ```
-expo-app/
-├── app/                          # Expo Router pages (if using)
-│   ├── (tabs)/
-│   ├── _layout.tsx
-│   └── index.tsx
+stock-mobile/
 ├── src/
+│   ├── app/                       # Expo Router pages (file-based routing)
+│   │   ├── (auth)/                # Login, register, password reset... (stack, no tab bar)
+│   │   ├── (tabs)/                # Stock, Recipes, Shopping list, Profile (bottom tabs)
+│   │   ├── _layout.tsx            # Root layout (providers: QueryClient, theme, auth)
+│   │   └── index.tsx              # Entry redirect (auth check → (tabs) or (auth))
 │   ├── components/
-│   │   ├── ui/                   # Reusable UI components
-│   │   ├── forms/                # Form components
-│   │   └── layout/               # Layout components
-│   ├── screens/                  # Screen components
-│   ├── navigation/               # Navigation configuration
-│   ├── hooks/                    # Custom hooks
-│   ├── services/                 # API services
-│   ├── store/                    # State management
-│   ├── utils/                    # Utility functions
-│   ├── types/                    # TypeScript type definitions
-│   ├── constants/                # App constants
-│   └── assets/                   # Images, fonts, etc.
-├── __tests__/                    # Test files
-├── app.json                      # Expo configuration
-├── babel.config.js
-├── metro.config.js
+│   │   ├── ui/                    # Reusable UI primitives
+│   │   ├── forms/                 # Form components
+│   │   └── layout/                # Layout components
+│   ├── services/
+│   │   ├── api/                   # orval-generated client + hooks (from stock-api OpenAPI spec)
+│   │   └── auth/                  # Token storage (SecureStore), auth context
+│   ├── store/                     # Zustand stores (client-only UI state, if needed)
+│   ├── hooks/                     # Custom hooks
+│   ├── utils/                     # Utility functions
+│   ├── types/                     # Shared TypeScript type definitions (non-generated)
+│   └── constants/                 # App constants (colors, theme tokens...)
+├── assets/                        # Images, fonts, app icons (referenced via @/assets/*)
+├── docs/                          # Functional specs (screens, flows) — no visual mockups
+├── __tests__/                     # Test files
+├── app.json                       # Expo configuration
 ├── tsconfig.json
 └── package.json
 ```
+
+Note: `babel.config.js` / `metro.config.js` are intentionally absent — Expo SDK 57's zero-config
+defaults are used unless a specific customization requires overriding them.
 
 ## Development Guidelines
 
@@ -141,43 +147,43 @@ export function ProfileCard({
 
 ### Development Requirements
 
-- Node.js >= 18.0.0
-- npm >= 8.0.0 or yarn >= 1.22.0
-- Expo CLI >= 6.0.0
-- TypeScript >= 5.0.0
-- iOS Simulator (for iOS development)
-- Android Studio + Android SDK (for Android development)
+- Node.js 20 LTS (or newer)
+- npm >= 10.0.0 (this project uses npm, not yarn)
+- TypeScript 6.0 (managed as a project devDependency, no global install needed)
+- Expo Go app (device) for the fastest local preview loop; no Expo CLI global install required (`npx expo` handles it)
+- iOS Simulator (Xcode, macOS only) for iOS development
+- Android Studio + Android SDK / emulator for Android development
 
 ### Installation Steps
 
 ```bash
-# 1. Install Expo CLI globally
-npm install -g @expo/cli
+# 1. Clone the repository
+git clone https://github.com/<your-account>/stock-mobile.git
+cd stock-mobile
 
-# 2. Create new Expo project with TypeScript
-npx create-expo-app MyApp --template
+# 2. Install dependencies (Expo Router, React Native, Reanimated 4, etc. are already
+#    declared in package.json — see actual versions there)
+npm install
 
-# 3. Navigate to project directory
-cd MyApp
+# 3. Copy the environment file and adjust the API base URL
+cp .env.example .env
 
-# 4. Install additional dependencies
-npx expo install expo-router expo-constants expo-linking
-npx expo install react-native-safe-area-context react-native-screens
-npx expo install @react-navigation/native @react-navigation/stack
-npx expo install react-native-reanimated react-native-gesture-handler
-npx expo install @tanstack/react-query expo-secure-store
-npx expo install react-native-svg expo-image
+# 4. Additional dependencies for this project's architecture (add as each feature is built):
+npx expo install @tanstack/react-query
+npx expo install expo-secure-store @react-native-async-storage/async-storage
+npm install -D orval                  # generates the API client/hooks from stock-api's OpenAPI spec
+npm install -D jest jest-expo @testing-library/react-native
+npm install -D maestro-cli            # E2E testing (installed separately, not an npm dependency — see Maestro docs)
 
-# 5. Install development dependencies
-npm install -D @types/react @types/react-native
-npm install -D jest @testing-library/react-native @testing-library/jest-native
-npm install -D detox
-
-# 6. Start development server
+# 5. Start the development server (scan the QR code with Expo Go, or use --tunnel
+#    when the device is not on the same Wi-Fi network, e.g. to test the Google OAuth2 flow)
 npx expo start
 ```
 
 ### TypeScript Configuration
+
+This is the actual `tsconfig.json` used in this project — a single `@/*` wildcard alias is
+preferred over one alias per subfolder (less to maintain as the structure evolves):
 
 ```json
 // tsconfig.json
@@ -185,59 +191,64 @@ npx expo start
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // Recommended additional strictness on top of the defaults already enabled:
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@/components/*": ["src/components/*"],
-      "@/screens/*": ["src/screens/*"],
-      "@/hooks/*": ["src/hooks/*"],
-      "@/utils/*": ["src/utils/*"],
-      "@/types/*": ["src/types/*"]
+      "@/*": ["./src/*"],
+      "@/assets/*": ["./assets/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }
 ```
 
+
 ### Expo Configuration
+
+This matches the actual `app.json` used in this project (SDK 50+ replaced the top-level `splash`
+object with the `expo-splash-screen` config plugin — using the old `splash` key is deprecated):
 
 ```json
 // app.json
 {
   "expo": {
-    "name": "MyApp",
-    "slug": "my-app",
+    "name": "stock-mobile",
+    "slug": "stock-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/icon.png",
+    "scheme": "stockshop",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.myapp"
+      "bundleIdentifier": "com.yourcompany.stockmobile"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "package": "com.yourcompany.myapp"
+      "package": "com.yourcompany.stockmobile"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#208AEF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -246,11 +257,17 @@ npx expo start
       ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "reactCompiler": true
     }
   }
 }
 ```
+
+Note: `assetBundlePatterns` and the New Architecture toggle are no longer needed — asset bundling
+is handled automatically by Metro/Expo, and the New Architecture is on by default (SDK 55+) with
+no opt-out.
+
 
 ## Core Feature Implementation
 
@@ -439,88 +456,73 @@ export function SafeAreaScrollView({
 
 ### Navigation Setup
 
+This project uses **Expo Router** (file-based routing) exclusively — there is no manually created
+`NavigationContainer`/`Stack.Navigator` (Expo Router wraps React Navigation internally and
+generates routes from the file tree under `src/app/`).
+
+```
+src/app/
+├── _layout.tsx              # Root layout: providers (QueryClientProvider, theme...) + auth guard
+├── index.tsx                # Redirects to (tabs) or (auth) depending on auth state
+├── (auth)/
+│   ├── _layout.tsx           # Stack layout, no tab bar
+│   ├── login.tsx
+│   ├── register.tsx
+│   └── forgot-password.tsx
+└── (tabs)/
+    ├── _layout.tsx           # Tab bar layout
+    ├── stock/
+    │   ├── index.tsx         # Stock list
+    │   └── [productId].tsx   # Stock item detail (dynamic route)
+    ├── recipes.tsx
+    ├── shopping-list.tsx
+    └── profile.tsx
+```
+
 ```typescript
-// src/navigation/AppNavigator.tsx
-import React from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
+// src/app/_layout.tsx
+import { Stack } from "expo-router";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/services/api/queryClient";
 
-import { HomeScreen } from "@/screens/HomeScreen";
-import { ProfileScreen } from "@/screens/ProfileScreen";
-import { SettingsScreen } from "@/screens/SettingsScreen";
-import { LoginScreen } from "@/screens/auth/LoginScreen";
-
-export type RootStackParamList = {
-  Main: undefined;
-  Login: undefined;
-  Profile: { userId: string };
-};
-
-export type TabParamList = {
-  Home: undefined;
-  Profile: undefined;
-  Settings: undefined;
-};
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator<TabParamList>();
-
-function TabNavigator() {
+export default function RootLayout() {
   return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap;
-
-          switch (route.name) {
-            case "Home":
-              iconName = focused ? "home" : "home-outline";
-              break;
-            case "Profile":
-              iconName = focused ? "person" : "person-outline";
-              break;
-            case "Settings":
-              iconName = focused ? "settings" : "settings-outline";
-              break;
-            default:
-              iconName = "help-outline";
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: "#007AFF",
-        tabBarInactiveTintColor: "gray",
-        headerShown: false,
-      })}
-    >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
-    </Tab.Navigator>
-  );
-}
-
-export function AppNavigator() {
-  return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Main">
-        <Stack.Screen
-          name="Main"
-          component={TabNavigator}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{ presentation: "modal" }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <QueryClientProvider client={queryClient}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </QueryClientProvider>
   );
 }
 ```
+
+```typescript
+// src/app/(tabs)/_layout.tsx
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+
+export default function TabsLayout() {
+  return (
+    <Tabs screenOptions={{ tabBarActiveTintColor: "#007AFF" }}>
+      <Tabs.Screen
+        name="stock"
+        options={{
+          title: "Stock",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cube-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen name="recipes" options={{ title: "Recipes" }} />
+      <Tabs.Screen name="shopping-list" options={{ title: "Shopping list" }} />
+      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+    </Tabs>
+  );
+}
+```
+
+Navigating between screens uses the `router` object or `<Link>` from `expo-router`
+(`router.push("/(tabs)/stock/[productId]")`), typed automatically thanks to `experiments.typedRoutes`
+in `app.json`.
+
 
 ### State Management
 
@@ -666,141 +668,100 @@ export function useAuth() {
 
 ## Data Fetching and API Integration
 
+In this project, API hooks are **generated with `orval`** from `stock-api`'s OpenAPI spec
+(`GET /v3/api-docs`), targeting the `react-query` client mode — this avoids hand-writing a generic
+`ApiClient` class and per-entity hooks (`useUsers`, `useCreateUser`...) for every endpoint. The
+patterns below cover the `QueryClient` setup (still hand-configured) and the orval configuration
+that produces those hooks automatically.
+
 ### React Query Setup
 
 ```typescript
-// src/services/api.ts
+// src/services/api/queryClient.ts
 import { QueryClient } from "@tanstack/react-query";
-import * as SecureStore from "expo-secure-store";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 3,
+      retry: 2,
       staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes — renamed from "cacheTime" in TanStack Query v5
     },
   },
 });
-
-class ApiClient {
-  private baseURL = "https://api.example.com";
-
-  private async getAuthToken(): Promise<string | null> {
-    return await SecureStore.getItemAsync("authToken");
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const token = await this.getAuthToken();
-
-    const config: RequestInit = {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    const response = await fetch(`${this.baseURL}${endpoint}`, config);
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
-  }
-
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint);
-  }
-
-  async post<T>(endpoint: string, data: unknown): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async put<T>(endpoint: string, data: unknown): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: "DELETE",
-    });
-  }
-}
-
-export const apiClient = new ApiClient();
 ```
 
-### Custom Hooks for Data Fetching
+### Generating the API client with orval
 
 ```typescript
-// src/hooks/useUsers.ts
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/services/api";
+// orval.config.ts
+import { defineConfig } from "orval";
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-}
+export default defineConfig({
+  stockApi: {
+    input: "http://localhost:8080/v3/api-docs", // or a committed OpenAPI JSON snapshot
+    output: {
+      mode: "tags-split",              // one folder per OpenAPI tag (category, product, recipe...)
+      target: "src/services/api/generated",
+      client: "react-query",
+      httpClient: "fetch",
+      override: {
+        mutator: {
+          path: "./src/services/api/httpClient.ts",
+          name: "apiFetch",             // injects the Authorization header + base URL
+        },
+      },
+    },
+  },
+});
+```
 
-interface CreateUserData {
-  name: string;
-  email: string;
-}
+```bash
+# Regenerate the client whenever stock-api's OpenAPI contract changes
+npx orval
+```
 
-export function useUsers() {
-  return useQuery({
-    queryKey: ["users"],
-    queryFn: () => apiClient.get<User[]>("/users"),
-  });
-}
+```typescript
+// src/services/api/httpClient.ts — the custom mutator referenced above
+import * as SecureStore from "expo-secure-store";
 
-export function useUser(userId: string) {
-  return useQuery({
-    queryKey: ["users", userId],
-    queryFn: () => apiClient.get<User>(`/users/${userId}`),
-    enabled: !!userId,
-  });
-}
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-export function useCreateUser() {
-  const queryClient = useQueryClient();
+export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const token = await SecureStore.getItemAsync("accessToken");
 
-  return useMutation({
-    mutationFn: (userData: CreateUserData) =>
-      apiClient.post<User>("/users", userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...init?.headers,
     },
   });
-}
 
-export function useUpdateUser() {
-  const queryClient = useQueryClient();
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+  }
 
-  return useMutation({
-    mutationFn: ({ id, ...userData }: Partial<User> & { id: string }) =>
-      apiClient.put<User>(`/users/${id}`, userData),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["users", data.id], data);
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-  });
+  return response.json() as Promise<T>;
 }
 ```
+
+Usage in a screen becomes a plain generated hook call, no manual `useQuery`/`useMutation` wiring
+needed for endpoints already covered by the OpenAPI spec:
+
+```typescript
+// example usage once generated (actual hook names depend on stock-api's OpenAPI operationIds)
+import { useGetStockItems, useCreateStockItem } from "@/services/api/generated/stock";
+
+function useStockScreenData() {
+  const { data: stockItems, isLoading } = useGetStockItems();
+  const createStockItem = useCreateStockItem();
+
+  return { stockItems, isLoading, createStockItem };
+}
+```
+
 
 ## Performance Optimization
 
@@ -1194,8 +1155,8 @@ describe("Button Component", () => {
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LoginScreen } from "@/screens/auth/LoginScreen";
-import { AuthProvider } from "@/store/AuthContext";
+import { LoginScreen } from "@/components/screens/LoginScreen";
+import { AuthProvider } from "@/services/auth/AuthContext";
 
 const createTestQueryClient = () =>
   new QueryClient({
@@ -1246,6 +1207,34 @@ describe("LoginScreen", () => {
     });
   });
 });
+```
+
+Note: with Expo Router, the route file (e.g. `src/app/(auth)/login.tsx`) stays a thin wrapper that
+re-exports a presentational component from `src/components/screens/`. This keeps screen components
+directly testable (as above) without pulling in the router at test time.
+
+### E2E Testing
+
+**Maestro** is preferred over Detox for this project: Detox requires a native build (or `expo
+prebuild`) to run, while Maestro drives the app through Expo Go / a dev client / a built binary
+without any native project setup, which fits Expo's managed workflow much better.
+
+```yaml
+# .maestro/login-flow.yaml
+appId: fr.stockshop.stockmobile
+---
+- launchApp
+- tapOn: "Email"
+- inputText: "user@example.com"
+- tapOn: "Password"
+- inputText: "Password123!"
+- tapOn: "Login"
+- assertVisible: "Stock"
+```
+
+```bash
+# Install once (not an npm dependency): https://maestro.mobile.dev
+maestro test .maestro/login-flow.yaml
 ```
 
 ## Error Handling and Validation
@@ -1495,21 +1484,25 @@ export default i18n;
 // eas.json
 {
   "cli": {
-    "version": ">= 3.0.0"
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "ios": {
         "simulator": true
       }
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "env": {
         "NODE_ENV": "production"
       }
@@ -1527,40 +1520,34 @@ export default i18n;
 // app.json - Production configuration
 {
   "expo": {
-    "name": "MyApp",
-    "slug": "my-app",
+    "name": "stock-mobile",
+    "slug": "stock-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/icon.png",
+    "scheme": "stockshop",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "updates": {
-      "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/your-project-id"
     },
     "runtimeVersion": {
-      "policy": "sdkVersion"
+      "policy": "appVersion"
     },
-    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.myapp",
+      "bundleIdentifier": "com.yourcompany.stockmobile",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera to take photos.",
+        "NSCameraUsageDescription": "This app uses the camera to take photos of your products.",
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images."
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundColor": "#FFFFFF"
       },
-      "package": "com.yourcompany.myapp",
+      "package": "com.yourcompany.stockmobile",
       "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",
@@ -1568,8 +1555,13 @@ export default i18n;
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/images/favicon.png"
     },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-splash-screen", { "backgroundColor": "#208AEF", "image": "./assets/images/splash-icon.png" }]
+    ],
     "extra": {
       "eas": {
         "projectId": "your-project-id"
@@ -1578,6 +1570,12 @@ export default i18n;
   }
 }
 ```
+
+Note: `fallbackToCacheTimeout` (in `updates`) was removed in favor of `expo-updates`' newer
+`checkAutomatically`/`fallbackToCacheTimeout` runtime config API and is no longer a top-level
+`app.json` field; `runtimeVersion.policy: "appVersion"` (rather than `"sdkVersion"`) is recommended
+so that OTA updates stay scoped to a given app store release, avoiding native/JS mismatches.
+
 
 ## Common Issues and Solutions
 
@@ -1588,14 +1586,15 @@ export default i18n;
 - Use dynamic imports for large libraries
 - Implement code splitting
 - Remove unused dependencies
-- Use Flipper only in development
+- Use React Native DevTools (built into the framework since RN 0.73+) rather than Flipper, which
+  is no longer actively supported on the New Architecture
 
 ### Issue 2: Performance Issues on Android
 
 **Solution**:
 
-- Enable Hermes engine
-- Use FlatList for large datasets
+- Hermes is the default JS engine since Expo SDK 47 / RN 0.70 — there is nothing left to "enable"
+- Use FlatList (or FlashList for very large lists) for large datasets
 - Optimize images with expo-image
 - Avoid unnecessary re-renders
 
@@ -1610,67 +1609,41 @@ export default i18n;
 
 ### Issue 4: Navigation State Persistence
 
-**Solution**:
-
-```typescript
-// Implement navigation state persistence
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const PERSISTENCE_KEY = "NAVIGATION_STATE_V1";
-
-export function AppNavigator() {
-  const [isReady, setIsReady] = useState(false);
-  const [initialState, setInitialState] = useState();
-
-  useEffect(() => {
-    const restoreState = async () => {
-      try {
-        const savedStateString = await AsyncStorage.getItem(PERSISTENCE_KEY);
-        const state = savedStateString
-          ? JSON.parse(savedStateString)
-          : undefined;
-        setInitialState(state);
-      } finally {
-        setIsReady(true);
-      }
-    };
-
-    if (!isReady) {
-      restoreState();
-    }
-  }, [isReady]);
-
-  if (!isReady) {
-    return null;
-  }
-
-  return (
-    <NavigationContainer
-      initialState={initialState}
-      onStateChange={(state) =>
-        AsyncStorage.setItem(PERSISTENCE_KEY, JSON.stringify(state))
-      }
-    >
-      {/* Your navigation structure */}
-    </NavigationContainer>
-  );
-}
-```
+**Solution**: not applicable the way it is with manual React Navigation — this project uses Expo
+Router, which already derives navigation state from the URL and restores it automatically on
+reload (web) or relaunch (native, via deep linking). No manual `AsyncStorage` persistence of a
+`NavigationContainer` state is needed here.
 
 ## Reference Resources
 
 - [Expo Official Documentation](https://docs.expo.dev/)
+- [Expo Router Documentation](https://docs.expo.dev/router/introduction/)
 - [React Native Documentation](https://reactnative.dev/docs/getting-started)
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-- [React Navigation Documentation](https://reactnavigation.org/docs/getting-started)
 - [React Native Reanimated Documentation](https://docs.swmansion.com/react-native-reanimated/)
-- [React Query Documentation](https://tanstack.com/query/latest)
+- [TanStack Query Documentation](https://tanstack.com/query/latest)
+- [orval Documentation](https://orval.dev/)
 - [Expo Security Guidelines](https://docs.expo.dev/guides/security/)
 - [React Native Testing Library](https://callstack.github.io/react-native-testing-library/)
+- [Maestro Documentation](https://maestro.mobile.dev/)
+- [EAS Build / Submit / Update Documentation](https://docs.expo.dev/eas/)
 
 ## Changelog
 
+### v1.1.0 (2026-09-04)
+
+- Aligned the guide with the actual `stock-mobile` project: Expo SDK 57, React Native 0.86 (New
+  Architecture), React 19, TypeScript 6, Expo Router 6 (file-based, `src/app/`)
+- Replaced manual React Navigation setup with Expo Router file-based routing
+- Replaced the hand-written `ApiClient`/hooks pattern with an `orval`-generated React Query client
+  from `stock-api`'s OpenAPI spec, and fixed `cacheTime` → `gcTime` (TanStack Query v5 renaming)
+- Replaced Detox with Maestro for E2E testing (no native build required for Expo-managed apps)
+- Removed the deprecated top-level `splash` config in favor of the `expo-splash-screen` plugin
+- Removed obsolete advice (enabling Hermes, Flipper, manual navigation-state persistence) that no
+  longer applies to current Expo/React Native versions
+
 ### v1.0.0 (2024-12-19)
+
 
 - Initial release of TypeScript React Native Expo mobile development guide
 - Comprehensive coverage of modern mobile development practices
@@ -1680,4 +1653,11 @@ export function AppNavigator() {
 
 ---
 
-**Note**: This guide is based on Expo SDK 49+, React Native 0.72+, and TypeScript 5.0+. Please adjust configurations and examples according to your specific project requirements and the versions you are using. Always refer to the official Expo and React Native documentation for the most up-to-date information.
+**Note**: This guide has been reviewed and aligned with the actual configuration of the
+`stock-mobile` project as of 2026-09-04: Expo SDK 57.0.20, React Native 0.86.3 (New Architecture),
+React 19.2.3, TypeScript 6.0.3, Expo Router ~57.0.19 (file-based routing under `src/app/`), and
+React Native Reanimated 4.5.1. Data fetching is generated via `orval` (TanStack Query v5) from
+`stock-api`'s OpenAPI spec; E2E testing uses Maestro instead of Detox. Re-check this note whenever
+a major Expo SDK upgrade is performed on this project, and update the versions/examples above
+accordingly. Always refer to the official Expo and React Native documentation for the most
+up-to-date information.
