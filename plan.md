@@ -184,14 +184,16 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 
 **API:** `POST /api/auth/resend-confirmation`
 
-- [ ] Ecran informatif + bouton renvoi email.
-- [ ] Cooldown UI anti-spam (client side).
+- [x] Ecran informatif + bouton renvoi email.
+- [x] Cooldown UI anti-spam (client side).
 
 **Offline:**
 
-- Renvoi confirmation passe par queue mutation.
+- [x] Renvoi confirmation passe par queue mutation.
 
 **DoD:** renvoi email fonctionnel et feedback visible.
+
+Note verification: logique implementee et validee au typecheck/lint; test de parcours complet sur device/emulateur a confirmer.
 
 ### E04 - Mot de passe oublie
 

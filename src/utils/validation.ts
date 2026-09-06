@@ -17,4 +17,10 @@ export const registerSchema = z.object({
 
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
+export const resendConfirmationSchema = z.object({
+  email: z.string().email('Email invalide'),
+});
+
+export type ResendConfirmationFormValues = z.infer<typeof resendConfirmationSchema>;
+
 

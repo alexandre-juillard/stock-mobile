@@ -2,8 +2,14 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
-import { login, register } from '@/services/api/generated/authentification/authentification';
-import type { LoginRequest, LoginResponse, RegisterRequest, UserResponse } from '@/services/api/generated/model';
+import { login, register, resendConfirmation } from '@/services/api/generated/authentification/authentification';
+import type {
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  ResendConfirmationRequest,
+  UserResponse,
+} from '@/services/api/generated/model';
 import { apiFetch } from '@/services/api/http-client';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
@@ -117,6 +123,10 @@ export async function registerWithEmail(request: RegisterRequest): Promise<UserR
   }
 
   return payload;
+}
+
+export async function resendConfirmationEmail(request: ResendConfirmationRequest): Promise<void> {
+  await resendConfirmation(request);
 }
 
 export async function loginWithGoogle(): Promise<OAuthExchangeResult> {
