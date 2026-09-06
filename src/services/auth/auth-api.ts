@@ -6,11 +6,13 @@ import {
   forgotPassword,
   login,
   register,
+  resolveOAuth2LinkDecision as resolveOAuth2LinkDecisionRequest,
   resetPassword,
   resendConfirmation,
 } from '@/services/api/generated/authentification/authentification';
 import type {
   ForgotPasswordRequest,
+  LinkDecisionRequest,
   LoginRequest,
   LoginResponse,
   RegisterRequest,
@@ -143,6 +145,19 @@ export async function forgotPasswordWithEmail(request: ForgotPasswordRequest): P
 
 export async function resetPasswordWithToken(request: ResetPasswordRequest): Promise<void> {
   await resetPassword(request);
+}
+
+export async function resolveOAuth2LinkDecisionWithTokens(
+  request: LinkDecisionRequest
+): Promise<LoginResponse> {
+  const response = await resolveOAuth2LinkDecisionRequest(request);
+  const payload = unwrapData(response);
+
+  if (!isLoginResponse(payload)) {
+    throw new Error('Reponse de liaison OAuth2 invalide');
+  }
+
+  return payload;
 }
 
 export async function loginWithGoogle(): Promise<OAuthExchangeResult> {

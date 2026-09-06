@@ -236,12 +236,16 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 
 - [ ] Ecran de choix `LINK` ou `DECLINE`.
 - [ ] Relancer emission tokens selon decision.
+- [x] Ecran de choix `LINK` ou `DECLINE`.
+- [x] Relancer emission tokens selon decision.
 
 **Offline:**
 
-- Queueable, mais message explicite si decision en attente.
+- [x] Queueable, mais message explicite si decision en attente.
 
 **DoD:** cas `LINK_REQUIRED` resolu sans blocage UX.
+
+Note verification: logique implementee et validee au typecheck/lint; test de parcours complet sur device/emulateur a confirmer.
 
 ### E07 - Stock (liste) - accueil principal
 
