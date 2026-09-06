@@ -201,13 +201,15 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 
 **API:** `POST /api/auth/forgot-password`
 
-- [ ] Saisie email + confirmation visuelle.
+- [x] Saisie email + confirmation visuelle.
 
 **Offline:**
 
-- Mutation queueable avec feedback `en attente`.
+- [x] Mutation queueable avec feedback `en attente`.
 
 **DoD:** flux de demande reset complet.
+
+Note verification: logique implementee et validee au typecheck/lint; test de parcours complet sur device/emulateur a confirmer.
 
 ### E05 - Reset mot de passe
 
