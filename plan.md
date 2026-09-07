@@ -441,10 +441,10 @@ puis verification OK via `npm run typecheck; npm run lint`.
 
 **API:** `GET/PUT /api/users/me`, `PATCH /api/users/me/locale`, `POST/DELETE /api/users/me/avatar`, `POST /api/auth/logout`
 
-- [ ] Infos utilisateur (avatar, nom, email).
-- [ ] Edition profil.
-- [ ] Changement langue et theme.
-- [ ] Logout.
+- [x] Infos utilisateur (avatar, nom, email).
+- [x] Edition profil.
+- [x] Changement langue et theme.
+- [x] Logout.
 
 **Offline:**
 
@@ -452,6 +452,12 @@ puis verification OK via `npm run typecheck; npm run lint`.
 - Logout online prioritaire (si offline: purge locale + revoke differe).
 
 **DoD:** utilisateur autonome sur ses preferences.
+
+Note verification: ecran `src/app/(tabs)/profile/index.tsx` implemente (infos utilisateur,
+edition profil, langue, theme, avatar, logout), queues offline dediees
+`src/services/offline/profile-mutations-queue.ts` et
+`src/services/offline/logout-revoke-queue.ts`, reprise automatique des revocations differees dans
+`src/app/(auth)/login.tsx`, puis verification OK via `npm run typecheck; npm run lint`.
 
 ### E16 - Notifications
 
