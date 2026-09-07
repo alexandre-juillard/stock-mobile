@@ -92,4 +92,35 @@ export const categoryFormSchema = z.object({
 
 export type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
+export const recipeIngredientFormSchema = z.object({
+  productId: z.string().min(1, 'Le produit est requis'),
+  productName: z.string().min(1, 'Le produit est requis'),
+  quantity: z
+    .string()
+    .trim()
+    .min(1, 'La quantite est requise')
+    .refine((value) => NON_NEGATIVE_NUMBER_PATTERN.test(value), {
+      message: 'Renseigne une quantite valide',
+    })
+    .refine((value) => Number.parseFloat(value.replace(',', '.')) > 0, {
+      message: 'La quantite doit etre strictement positive',
+    }),
+  unitId: z.string().min(1, 'L unite est requise'),
+  unitLabel: z.string().min(1, 'L unite est requise'),
+});
+
+export const recipeFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Le nom de la recette est requis')
+    .max(200, 'Le nom est trop long (max 200 caracteres)'),
+  ingredients: z
+    .array(recipeIngredientFormSchema)
+    .min(1, 'Ajoute au moins un ingredient'),
+});
+
+export type RecipeIngredientFormValues = z.infer<typeof recipeIngredientFormSchema>;
+export type RecipeFormValues = z.infer<typeof recipeFormSchema>;
+
 
