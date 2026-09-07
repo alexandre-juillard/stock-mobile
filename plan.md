@@ -365,17 +365,23 @@ OK via `npm run typecheck; npm run lint`.
 
 **API:** `GET /api/recipes/{id}`, `POST /api/recipes/{id}/consume`, `DELETE /api/recipes/{id}`
 
-- [ ] Ingredients dispo/non dispo.
-- [ ] Action consommer recette.
-- [ ] Si `409`: afficher conflict et proposer `force=true`.
-- [ ] Action ajouter manquants aux courses (mapping via shopping list).
+- [x] Ingredients dispo/non dispo.
+- [x] Action consommer recette.
+- [x] Si `409`: afficher conflict et proposer `force=true`.
+- [x] Action ajouter manquants aux courses (mapping via shopping list).
 
 **Offline:**
 
-- Consume/delete en queue.
-- Si conflit au replay, mettre en erreur metier a corriger dans UI.
+- [x] Consume/delete en queue.
+- [x] Si conflit au replay, mettre en erreur metier a corriger dans UI.
 
 **DoD:** flux consommation complet et comprehensible.
+
+Note verification: ecran `src/app/(tabs)/recipes/[recipeId].tsx` implemente (ingredients
+disponibles/manquants, consommation normale/forcee, gestion conflit 409, ajout des manquants aux
+courses, suppression), queue offline dediee `src/services/offline/recipe-actions-queue.ts`
+(consume/delete + conflits metier de replay), adaptation `ApiClientError.details` dans
+`src/services/api/http-client.ts`, puis verification OK via `npm run typecheck; npm run lint`.
 
 ### E13 - Creation/edition recette
 
