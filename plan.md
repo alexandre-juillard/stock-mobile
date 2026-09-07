@@ -234,8 +234,6 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 
 **API:** `POST /api/auth/oauth2/link-decision`
 
-- [ ] Ecran de choix `LINK` ou `DECLINE`.
-- [ ] Relancer emission tokens selon decision.
 - [x] Ecran de choix `LINK` ou `DECLINE`.
 - [x] Relancer emission tokens selon decision.
 
@@ -253,9 +251,14 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 
 **API:** `GET /api/stock-items`, `GET /api/stock-items/expiring-soon`
 
-- [ ] Liste produits, recherche locale, filtre categorie.
-- [ ] Badges statut expiration (`ok/low/expiring/expired`).
-- [ ] CTA ajout produit et acces detail.
+- [x] Liste produits, recherche locale, filtre categorie.
+- [x] Badges statut expiration (`ok/low/expiring/expired`).
+- [x] CTA ajout produit et acces detail.
+
+**Filtre categorie (decision 2026-09-07) :** multi-selection (Option B) — plusieurs chips
+categorie togglables simultanement, filtre cumulatif (union). Justifie par les categories
+libres/illimitees crees par l'utilisateur (E10), plus adapte qu'un choix mono-selection des
+que la liste de categories grandit.
 
 **Offline:**
 
@@ -263,6 +266,11 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 - Etat stale assume + bouton `Rafraichir` quand online.
 
 **DoD:** ecran utile offline avec dernier etat synchronise.
+
+Note verification: logique implementee et validee au typecheck/lint; ecrans de detail (E08) et
+formulaire (E09) crees en stub pour permettre la navigation typee, a completer dans leurs
+etapes respectives.
+
 
 ### E08 - Detail produit du stock
 
@@ -469,4 +477,5 @@ Note verification: logique implementee et validee au typecheck/lint; test de par
 - 2026-09-06: Offline V1 valide en Option A (toutes mutations en file).
 - 2026-09-06: Decoupage de pilotage valide par ecran.
 - 2026-09-06: UI React Native Paper prioritaire (Option A).
+- 2026-09-07: Filtre categorie de l'ecran Stock (E07) valide en multi-selection (Option B).
 
