@@ -323,14 +323,20 @@ selection categorie/type/unite, upload photo), queue persistante dediee dans
 
 **API:** `GET/POST/PUT/DELETE /api/categories`
 
-- [ ] Liste categories.
-- [ ] CRUD via dialogs Paper.
+- [x] Liste categories.
+- [x] CRUD via dialogs Paper.
 
 **Offline:**
 
-- CRUD en queue + reconciliation des listes.
+- [x] CRUD en queue + reconciliation des listes.
 
 **DoD:** categories maintenables sans quitter l'ecran.
+
+Note verification: ecran `src/app/(tabs)/categories/index.tsx` implemente (liste + dialogs
+create/update/delete), route cachee ajoutee dans `src/app/(tabs)/_layout.tsx`, acces depuis
+`src/app/(tabs)/stock/index.tsx`, queue persistante dans
+`src/services/offline/categories-queue.ts`, validation Zod dans `src/utils/validation.ts`, puis
+verification OK via `npm run typecheck; npm run lint`.
 
 ### E11 - Recettes (liste)
 

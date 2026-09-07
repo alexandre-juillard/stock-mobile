@@ -79,4 +79,17 @@ export const stockFormSchema = z.object({
 
 export type StockFormValues = z.infer<typeof stockFormSchema>;
 
+export const categoryFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Le nom de la categorie est requis'),
+  color: z
+    .string()
+    .trim()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'La couleur doit etre au format HEX (#RRGGBB)'),
+});
+
+export type CategoryFormValues = z.infer<typeof categoryFormSchema>;
+
 

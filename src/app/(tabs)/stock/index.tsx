@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { Card, Chip, FAB, Searchbar, Text } from 'react-native-paper';
+import { Button, Card, Chip, FAB, Searchbar, Text } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { StockStatusBadge } from '@/components/ui/stock-status-badge';
@@ -14,6 +14,7 @@ import { getListStockItemsQueryOptions } from '@/services/api/generated/stock/st
 import { mapErrorToUi } from '@/utils/error-mapper';
 
 const ADD_PRODUCT_ROUTE = '/(tabs)/stock/form' as Href;
+const MANAGE_CATEGORIES_ROUTE = '/(tabs)/categories' as Href;
 
 function buildStockItemRoute(stockItemId: string): Href {
   return `/(tabs)/stock/${stockItemId}` as Href;
@@ -158,6 +159,14 @@ export default function StockListScreen() {
         />
       ) : null}
 
+      <Button
+        mode="text"
+        icon="shape-outline"
+        onPress={() => router.push(MANAGE_CATEGORIES_ROUTE)}
+        style={styles.manageCategoriesButton}>
+        Gerer les categories
+      </Button>
+
       {isInitialLoading ? (
         <View style={styles.centered}>
           <Text>Chargement de ton stock...</Text>
@@ -212,6 +221,9 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     marginRight: 8,
+  },
+  manageCategoriesButton: {
+    alignSelf: 'flex-start',
   },
   centered: {
     flex: 1,
