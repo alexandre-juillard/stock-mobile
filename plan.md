@@ -278,14 +278,18 @@ etapes respectives.
 
 **API:** detail via `GET /api/stock-items` + mutations stock
 
-- [ ] Afficher quantite, unite, seuil, expiration, categorie, photo.
-- [ ] Actions: modifier quantite, marquer consomme (quantity 0 ou delete), ajouter courses.
+- [x] Afficher quantite, unite, seuil, expiration, categorie, photo.
+- [x] Actions: modifier quantite, marquer consomme (quantity 0 ou delete), ajouter courses.
 
 **Offline:**
 
-- Toutes actions en queue avec update optimiste.
+- [x] Toutes actions en queue avec update optimiste.
 
 **DoD:** edition rapide fiable, y compris sans reseau.
+
+Note verification: ecran detail implemente dans `src/app/(tabs)/stock/[stockItemId].tsx` avec
+actions rapides offline-first (quantite, ajout courses, retire du stock), queue persistante dans
+`src/services/offline/stock-item-actions-queue.ts`
 
 ### E09 - Ajout/edition produit en stock
 
