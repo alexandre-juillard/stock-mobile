@@ -16,12 +16,14 @@ export interface ApiErrorPayload {
   message?: string;
   path?: string;
   fieldErrors?: Record<string, string>;
+  [key: string]: unknown;
 }
 
 export class ApiClientError extends Error {
   status: number;
   path: string;
   fieldErrors: Record<string, string>;
+  details: ApiErrorPayload;
 
   constructor(payload: ApiErrorPayload, fallbackStatus: number, fallbackPath: string) {
     super(payload.message ?? 'Une erreur API est survenue');
@@ -29,6 +31,7 @@ export class ApiClientError extends Error {
     this.status = payload.status ?? fallbackStatus;
     this.path = payload.path ?? fallbackPath;
     this.fieldErrors = payload.fieldErrors ?? {};
+    this.details = payload;
   }
 }
 
