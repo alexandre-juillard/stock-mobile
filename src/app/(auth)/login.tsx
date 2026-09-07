@@ -1,15 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { Button, Checkbox, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { logout as revokeRefreshToken } from '@/services/api/generated/authentification/authentification';
 import { useAuth } from '@/services/auth/auth-context';
 import { loginWithGoogle, loginWithPassword } from '@/services/auth/auth-api';
+import { flushPendingLogoutRevokes } from '@/services/offline/logout-revoke-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
 import { loginSchema, type LoginFormValues } from '@/utils/validation';
 
@@ -57,6 +59,38 @@ export default function LoginScreen() {
 
   const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
   const isSubmitting = loginMutation.isPending || googleMutation.isPending;
+
+  useEffect(() => {
+    if (isOffline || isSubmitting) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    async function flushQueuedLogoutRevokes() {
+      const result = await flushPendingLogoutRevokes(async (refreshToken) => {
+        await revokeRefreshToken({ refreshToken });
+      });
+
+      if (isCancelled) {
+        return;
+      }
+
+      if (result.status === 'synced' && result.syncedCount > 0) {
+        setSnackbarMessage('Deconnexion precedente synchronisee.');
+      }
+
+      if (result.status === 'failed' && result.failedCount > 0) {
+        setSnackbarMessage('Certains jetons de deconnexion n ont pas pu etre revoques.');
+      }
+    }
+
+    void flushQueuedLogoutRevokes();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOffline, isSubmitting]);
 
   const handleLogin = handleSubmit(async (values) => {
     if (isOffline) {
