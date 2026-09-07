@@ -301,16 +301,21 @@ actions rapides offline-first (quantite, ajout courses, retire du stock), queue 
 - `POST /api/stock-items`, `PATCH /api/stock-items/{id}/quantity|threshold|expiration`
 - `POST /api/products/{id}/photo`
 
-- [ ] Form complet produit + stock.
-- [ ] Selection categorie, type quantite, unite.
-- [ ] Upload photo.
+- [x] Form complet produit + stock.
+- [x] Selection categorie, type quantite, unite.
+- [x] Upload photo.
 
 **Offline:**
 
-- Create/update/patch en queue.
-- Upload photo differe si offline.
+- [x] Create/update/patch en queue.
+- [x] Upload photo differe si offline.
 
 **DoD:** creation/edition produit+stock en un flux clair.
+
+Note verification: ecran formulaire implemente dans `src/app/(tabs)/stock/form.tsx` (create/edit,
+selection categorie/type/unite, upload photo), queue persistante dediee dans
+`src/services/offline/stock-form-submissions-queue.ts`, validations Zod dans
+`src/utils/validation.ts`, puis verification OK via `npm run typecheck` et `npm run lint`.
 
 ### E10 - Gestion categories
 
