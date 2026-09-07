@@ -420,15 +420,20 @@ CRUD ingredients via formulaire, selection produit/unite, validation Zod), queue
 - `POST /api/shopping-list/check-thresholds`
 - `POST /api/shopping-list/finish`
 
-- [ ] Liste groupee par categorie.
-- [ ] Ajout manuel, check/uncheck, suppression, vider liste.
-- [ ] Finaliser courses -> impact stock.
+- [x] Liste groupee par categorie.
+- [x] Ajout manuel, check/uncheck, suppression, vider liste.
+- [x] Finaliser courses -> impact stock.
 
 **Offline:**
 
-- Toutes actions en queue avec rendu optimiste.
+- [x] Toutes actions en queue avec rendu optimiste.
 
 **DoD:** flux complet courses -> stock operationnel.
+
+Note verification: ecran `src/app/(tabs)/shopping-list/index.tsx` implemente (liste groupee,
+ajout manuel, check/uncheck, suppression, vider, finaliser, verification des seuils), queue offline
+dediee `src/services/offline/shopping-list-actions-queue.ts` avec rendu optimiste et replay,
+puis verification OK via `npm run typecheck; npm run lint`.
 
 ### E15 - Profil
 
