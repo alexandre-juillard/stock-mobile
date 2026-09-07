@@ -43,4 +43,40 @@ export const resetPasswordSchema = z
 
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
+const NON_NEGATIVE_NUMBER_PATTERN = /^\d+(?:[.,]\d+)?$/;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const stockFormSchema = z.object({
+  productName: z
+    .string()
+    .trim()
+    .min(1, 'Le nom du produit est requis'),
+  categoryId: z.string().min(1, 'La categorie est requise'),
+  quantityTypeId: z.string().optional(),
+  baseUnitId: z.string().optional(),
+  quantity: z
+    .string()
+    .trim()
+    .min(1, 'La quantite est requise')
+    .refine((value) => NON_NEGATIVE_NUMBER_PATTERN.test(value), {
+      message: 'Renseigne une quantite valide (>= 0)',
+    }),
+  lowThreshold: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || NON_NEGATIVE_NUMBER_PATTERN.test(value), {
+      message: 'Le seuil bas doit etre un nombre positif ou vide',
+    }),
+  expirationDate: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || ISO_DATE_PATTERN.test(value), {
+      message: 'Utilise le format AAAA-MM-JJ',
+    }),
+});
+
+export type StockFormValues = z.infer<typeof stockFormSchema>;
+
 
