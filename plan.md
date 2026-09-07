@@ -344,14 +344,20 @@ verification OK via `npm run typecheck; npm run lint`.
 
 **API:** `GET /api/recipes`
 
-- [ ] Liste recettes + recherche.
-- [ ] Tag `realisable avec mon stock` (derive via detail/stock).
+- [x] Liste recettes + recherche.
+- [x] Tag `realisable avec mon stock` (derive via detail/stock).
 
 **Offline:**
 
-- Lecture cache + marqueur stale.
+- [x] Lecture cache + marqueur stale.
 
 **DoD:** navigation rapide vers detail et creation.
+
+Note verification: ecran `src/app/(tabs)/recipes/index.tsx` implemente (liste, recherche,
+filtre realisable/a completer, derive detail+stock), badge dedie
+`src/components/ui/recipe-feasibility-badge.tsx`, stubs routes crees pour E12/E13 dans
+`src/app/(tabs)/recipes/[recipeId].tsx` et `src/app/(tabs)/recipes/form.tsx`, puis verification
+OK via `npm run typecheck; npm run lint`.
 
 ### E12 - Detail recette
 
