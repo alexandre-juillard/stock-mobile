@@ -392,14 +392,19 @@ courses, suppression), queue offline dediee `src/services/offline/recipe-actions
 - `POST /api/recipes`, `PUT /api/recipes/{id}`
 - `POST/PUT/DELETE /api/recipes/{id}/ingredients/*`
 
-- [ ] Nom recette.
-- [ ] CRUD ingredients (produit, quantite, unite).
+- [x] Nom recette.
+- [x] CRUD ingredients (produit, quantite, unite).
 
 **Offline:**
 
-- Toutes mutations ingredient/recette en queue.
+- [x] Toutes mutations ingredient/recette en queue.
 
 **DoD:** recette editable de bout en bout.
+
+Note verification: ecran `src/app/(tabs)/recipes/form.tsx` implemente (create/edit recette,
+CRUD ingredients via formulaire, selection produit/unite, validation Zod), queue offline dediee
+`src/services/offline/recipe-form-submissions-queue.ts`, extension validation dans
+`src/utils/validation.ts`, puis verification OK via `npm run typecheck; npm run lint`.
 
 ### E14 - Liste de courses
 
