@@ -28,6 +28,8 @@ import {
 } from '@/services/api/generated/catégories/catégories';
 import type { CategoryResponse } from '@/services/api/generated/model';
 import { ApiClientError } from '@/services/api/http-client';
+import { queryKeys } from '@/services/api/query-keys';
+import { invalidateCategoryRelatedQueries } from '@/services/api/query-invalidations';
 import {
   enqueuePendingCategoryAction,
   flushPendingCategoryActions,
@@ -38,10 +40,6 @@ import { mapErrorToUi } from '@/utils/error-mapper';
 import { categoryFormSchema, type CategoryFormValues } from '@/utils/validation';
 
 const STOCK_ROUTE = '/(tabs)/stock' as Href;
-
-const CATEGORIES_QUERY_KEY = ['/api/categories'] as const;
-const STOCK_QUERY_KEY = ['/api/stock-items'] as const;
-const STOCK_EXPIRING_QUERY_KEY = ['/api/stock-items/expiring-soon'] as const;
 
 const DEFAULT_CATEGORY_COLOR = '#2D6A4F';
 const DANGER_COLOR = '#D90429';
@@ -134,25 +132,18 @@ function applyOptimisticCategoryUpdate(
   payload: { name: string; color: string }
 ): void {
   queryClient.setQueriesData<CategoriesResponseShape>(
-    { queryKey: CATEGORIES_QUERY_KEY },
+    { queryKey: queryKeys.categories.list },
     (current) => updateCategoryInResponse(current, categoryId, payload)
   );
 }
 
 function applyOptimisticCategoryDelete(queryClient: QueryClient, categoryId: string): void {
   queryClient.setQueriesData<CategoriesResponseShape>(
-    { queryKey: CATEGORIES_QUERY_KEY },
+    { queryKey: queryKeys.categories.list },
     (current) => removeCategoryFromResponse(current, categoryId)
   );
 }
 
-async function invalidateCategoryRelatedQueries(queryClient: QueryClient): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: CATEGORIES_QUERY_KEY }),
-    queryClient.invalidateQueries({ queryKey: STOCK_QUERY_KEY }),
-    queryClient.invalidateQueries({ queryKey: STOCK_EXPIRING_QUERY_KEY }),
-  ]);
-}
 
 export default function CategoriesScreen() {
   const router = useRouter();

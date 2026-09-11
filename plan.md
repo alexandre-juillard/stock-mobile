@@ -465,14 +465,20 @@ edition profil, langue, theme, avatar, logout), queues offline dediees
 
 **API:** `PUT /api/users/me/settings`, `POST/DELETE /api/push-tokens/{token?}`
 
-- [ ] Reglage `expirationAlertDays`.
-- [ ] Opt-in push + enregistrement token device.
+- [x] Reglage `expirationAlertDays`.
+- [x] Opt-in push + enregistrement token device.
 
 **Offline:**
 
-- Settings/token mutations en queue.
+- [x] Settings/token mutations en queue.
 
 **DoD:** preferences notifications appliquees et persistantes.
+
+Note verification: ecran `src/app/(tabs)/profile/notifications.tsx` implemente
+(`expirationAlertDays`, opt-in/out push, gestion token device), queues offline dediees
+`src/services/offline/notification-settings-queue.ts` et
+`src/services/offline/push-token-queue.ts`, schema Zod ajoute dans
+`src/utils/validation.ts`, puis verification OK via `npm run typecheck; npm run lint`.
 
 ## 6) Sous-plan transverse (obligatoire)
 

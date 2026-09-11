@@ -30,6 +30,8 @@ import {
   useUpdateThreshold,
 } from '@/services/api/generated/stock/stock';
 import { ApiClientError } from '@/services/api/http-client';
+import { queryKeys } from '@/services/api/query-keys';
+import { invalidateStockAndProductsQueries } from '@/services/api/query-invalidations';
 import {
   enqueuePendingStockFormSubmission,
   flushPendingStockFormSubmissions,
@@ -42,10 +44,6 @@ import { mapErrorToUi } from '@/utils/error-mapper';
 import { stockFormSchema, type StockFormValues } from '@/utils/validation';
 
 const STOCK_ROUTE = '/(tabs)/stock' as Href;
-
-const STOCK_LIST_QUERY_KEY_PREFIX = ['/api/stock-items'] as const;
-const STOCK_EXPIRING_QUERY_KEY = ['/api/stock-items/expiring-soon'] as const;
-const PRODUCTS_QUERY_KEY_PREFIX = ['/api/products'] as const;
 
 const DEFAULT_FORM_VALUES: StockFormValues = {
   productName: '',
@@ -160,22 +158,14 @@ function patchStockItemInResponse<T extends { data: StockItemResponse[] }>(
 
 function applyOptimisticEditUpdate(queryClient: QueryClient, payload: OptimisticEditPayload): void {
   queryClient.setQueriesData<ListStockItemsQueryResult>(
-    { queryKey: STOCK_LIST_QUERY_KEY_PREFIX },
+    { queryKey: queryKeys.stock.listPrefix },
     (current) => patchStockItemInResponse(current, payload)
   );
 
   queryClient.setQueriesData<ListStockItemsQueryResult>(
-    { queryKey: STOCK_EXPIRING_QUERY_KEY },
+    { queryKey: queryKeys.stock.expiring },
     (current) => patchStockItemInResponse(current, payload)
   );
-}
-
-async function invalidateFormRelatedQueries(queryClient: QueryClient): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: STOCK_LIST_QUERY_KEY_PREFIX }),
-    queryClient.invalidateQueries({ queryKey: STOCK_EXPIRING_QUERY_KEY }),
-    queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY_PREFIX }),
-  ]);
 }
 
 export default function StockItemFormScreen() {
@@ -402,7 +392,7 @@ export default function StockItemFormScreen() {
       });
 
       if (result.syncedCount > 0) {
-        await invalidateFormRelatedQueries(queryClient);
+        await invalidateStockAndProductsQueries(queryClient);
       }
 
       await refreshPendingSubmissionsCount();
@@ -542,14 +532,14 @@ export default function StockItemFormScreen() {
       }
 
       await refreshPendingSubmissionsCount();
-      await invalidateFormRelatedQueries(queryClient);
+      await invalidateStockAndProductsQueries(queryClient);
       router.replace(STOCK_ROUTE);
       return;
     }
 
     try {
       await executeOnlineSubmission(submission);
-      await invalidateFormRelatedQueries(queryClient);
+      await invalidateStockAndProductsQueries(queryClient);
       await refreshPendingSubmissionsCount();
       router.replace(STOCK_ROUTE);
     } catch (error) {
@@ -568,7 +558,7 @@ export default function StockItemFormScreen() {
         }
 
         await refreshPendingSubmissionsCount();
-        await invalidateFormRelatedQueries(queryClient);
+        await invalidateStockAndProductsQueries(queryClient);
         router.replace(STOCK_ROUTE);
         return;
       }

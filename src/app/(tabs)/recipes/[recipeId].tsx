@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNetInfo } from '@react-native-community/netinfo';
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -18,6 +18,8 @@ import {
 } from '@/services/api/generated/recettes/recettes';
 import { useListStockItems } from '@/services/api/generated/stock/stock';
 import { ApiClientError } from '@/services/api/http-client';
+import { queryKeys } from '@/services/api/query-keys';
+import { invalidateRecipeRelatedQueries } from '@/services/api/query-invalidations';
 import {
   clearRecipeReplayConflicts,
   enqueuePendingRecipeAction,
@@ -32,11 +34,6 @@ import { mapErrorToUi } from '@/utils/error-mapper';
 
 const RECIPES_ROUTE = '/(tabs)/recipes' as Href;
 const RECIPE_FORM_ROUTE = '/(tabs)/recipes/form';
-
-const RECIPES_LIST_QUERY_KEY = ['/api/recipes'] as const;
-const STOCK_LIST_QUERY_KEY = ['/api/stock-items'] as const;
-const STOCK_EXPIRING_QUERY_KEY = ['/api/stock-items/expiring-soon'] as const;
-const SHOPPING_LIST_QUERY_KEY = ['/api/shopping-list'] as const;
 
 const DANGER_COLOR = '#D90429';
 const WARNING_COLOR = '#E9C46A';
@@ -193,19 +190,6 @@ function buildMissingProductsFromIngredients(
   }
 
   return [...byProductId.values()];
-}
-
-async function invalidateRecipeRelatedQueries(
-  queryClient: QueryClient,
-  recipeId: string
-): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: RECIPES_LIST_QUERY_KEY }),
-    queryClient.invalidateQueries({ queryKey: [`/api/recipes/${recipeId}`] }),
-    queryClient.invalidateQueries({ queryKey: STOCK_LIST_QUERY_KEY }),
-    queryClient.invalidateQueries({ queryKey: STOCK_EXPIRING_QUERY_KEY }),
-    queryClient.invalidateQueries({ queryKey: SHOPPING_LIST_QUERY_KEY }),
-  ]);
 }
 
 function getIngredientStatusVisual(status: IngredientAvailabilityStatus): {
@@ -539,7 +523,7 @@ export default function RecipeDetailScreen() {
         }
       }
 
-      await queryClient.invalidateQueries({ queryKey: SHOPPING_LIST_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.shoppingList.list });
 
       const feedbackParts: string[] = [];
       if (addedCount > 0) {

@@ -20,6 +20,8 @@ import {
   useUpdateQuantity,
 } from '@/services/api/generated/stock/stock';
 import { ApiClientError } from '@/services/api/http-client';
+import { queryKeys } from '@/services/api/query-keys';
+import { invalidateStockQueries } from '@/services/api/query-invalidations';
 import {
   enqueuePendingStockItemAction,
   flushPendingStockItemActions,
@@ -30,9 +32,6 @@ import { mapErrorToUi } from '@/utils/error-mapper';
 
 const STOCK_ROUTE = '/(tabs)/stock' as Href;
 const STOCK_FORM_PATH = '/(tabs)/stock/form';
-
-const STOCK_LIST_QUERY_KEY_PREFIX = ['/api/stock-items'] as const;
-const STOCK_EXPIRING_QUERY_KEY = ['/api/stock-items/expiring-soon'] as const;
 
 const OUTLINED_BORDER_COLOR = '#D8DBE2';
 const DANGER_COLOR = '#D90429';
@@ -166,34 +165,28 @@ function applyOptimisticQuantityUpdate(
   quantity: number
 ): void {
   queryClient.setQueriesData<ListStockItemsQueryResult>(
-    { queryKey: STOCK_LIST_QUERY_KEY_PREFIX },
+    { queryKey: queryKeys.stock.listPrefix },
     (current) => updateQuantityInResponse(current, stockItemId, quantity)
   );
 
   queryClient.setQueriesData<ListExpiringSoonQueryResult>(
-    { queryKey: STOCK_EXPIRING_QUERY_KEY },
+    { queryKey: queryKeys.stock.expiring },
     (current) => updateQuantityInResponse(current, stockItemId, quantity)
   );
 }
 
 function applyOptimisticRemoval(queryClient: QueryClient, stockItemId: string): void {
   queryClient.setQueriesData<ListStockItemsQueryResult>(
-    { queryKey: STOCK_LIST_QUERY_KEY_PREFIX },
+    { queryKey: queryKeys.stock.listPrefix },
     (current) => removeItemFromResponse(current, stockItemId)
   );
 
   queryClient.setQueriesData<ListExpiringSoonQueryResult>(
-    { queryKey: STOCK_EXPIRING_QUERY_KEY },
+    { queryKey: queryKeys.stock.expiring },
     (current) => removeItemFromResponse(current, stockItemId)
   );
 }
 
-async function invalidateStockQueries(queryClient: QueryClient): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: STOCK_LIST_QUERY_KEY_PREFIX }),
-    queryClient.invalidateQueries({ queryKey: STOCK_EXPIRING_QUERY_KEY }),
-  ]);
-}
 
 export default function StockItemDetailScreen() {
   const router = useRouter();

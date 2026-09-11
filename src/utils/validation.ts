@@ -44,7 +44,22 @@ export const resetPasswordSchema = z
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
 const NON_NEGATIVE_NUMBER_PATTERN = /^\d+(?:[.,]\d+)?$/;
+const POSITIVE_INTEGER_PATTERN = /^\d+$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const notificationSettingsSchema = z.object({
+  expirationAlertDays: z
+    .string()
+    .trim()
+    .min(1, 'Le delai d alerte est requis')
+    .regex(POSITIVE_INTEGER_PATTERN, 'Renseigne un nombre entier positif')
+    .transform((value) => Number.parseInt(value, 10))
+    .refine((value) => value >= 1, {
+      message: 'Le delai doit etre superieur ou egal a 1',
+    }),
+});
+
+export type NotificationSettingsFormValues = z.input<typeof notificationSettingsSchema>;
 
 export const stockFormSchema = z.object({
   productName: z
