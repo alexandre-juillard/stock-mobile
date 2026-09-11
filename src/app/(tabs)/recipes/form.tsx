@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNetInfo } from '@react-native-community/netinfo';
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
@@ -44,6 +44,7 @@ import {
   type PendingRecipeFormSubmission,
   type RecipeFormSubmissionIngredient,
 } from '@/services/offline/recipe-form-submissions-queue';
+import { invalidateRecipeFormQueries } from '@/services/api/query-invalidations';
 import { mapErrorToUi } from '@/utils/error-mapper';
 import {
   recipeFormSchema,
@@ -52,9 +53,6 @@ import {
 } from '@/utils/validation';
 
 const RECIPES_ROUTE = '/(tabs)/recipes' as Href;
-
-const RECIPES_LIST_QUERY_KEY = ['/api/recipes'] as const;
-const RECIPES_DETAILS_QUERY_KEY = ['recipes-details'] as const;
 
 const DEFAULT_RECIPE_FORM_VALUES: RecipeFormValues = {
   name: '',
@@ -237,22 +235,6 @@ async function executeRecipeFormSubmissionOnline(
   }
 
   return recipeId;
-}
-
-async function invalidateRecipeFormQueries(
-  queryClient: QueryClient,
-  recipeId?: string
-): Promise<void> {
-  const invalidationTasks: Promise<void>[] = [
-    queryClient.invalidateQueries({ queryKey: RECIPES_LIST_QUERY_KEY }),
-    queryClient.invalidateQueries({ queryKey: RECIPES_DETAILS_QUERY_KEY }),
-  ];
-
-  if (recipeId) {
-    invalidationTasks.push(queryClient.invalidateQueries({ queryKey: [`/api/recipes/${recipeId}`] }));
-  }
-
-  await Promise.all(invalidationTasks);
 }
 
 function toUnitOptions(
@@ -633,7 +615,7 @@ export default function RecipeFormScreen() {
       });
 
       if (result.syncedCount > 0) {
-        await invalidateRecipeFormQueries(queryClient, recipeId ?? undefined);
+        await invalidateRecipeFormQueries(queryClient);
       }
 
       await refreshPendingSubmissionsCount();
@@ -656,7 +638,7 @@ export default function RecipeFormScreen() {
     } finally {
       setIsSyncingQueue(false);
     }
-  }, [isOffline, isSyncingQueue, queryClient, recipeId, refreshPendingSubmissionsCount]);
+  }, [isOffline, isSyncingQueue, queryClient, refreshPendingSubmissionsCount]);
 
   const handleSubmitRecipe = handleSubmit(async (values) => {
     if (isEditing && !recipeId) {
@@ -685,8 +667,8 @@ export default function RecipeFormScreen() {
     setIsSubmittingRecipe(true);
 
     try {
-      const resolvedRecipeId = await executeRecipeFormSubmissionOnline(submissionInput);
-      await invalidateRecipeFormQueries(queryClient, resolvedRecipeId ?? recipeId ?? undefined);
+      await executeRecipeFormSubmissionOnline(submissionInput);
+      await invalidateRecipeFormQueries(queryClient);
       await refreshPendingSubmissionsCount();
       router.replace(RECIPES_ROUTE);
     } catch (error) {

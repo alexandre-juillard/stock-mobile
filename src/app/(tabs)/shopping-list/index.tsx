@@ -36,6 +36,8 @@ import type {
 import { useListProducts } from '@/services/api/generated/produits/produits';
 import { useGetUnitsByType } from '@/services/api/generated/référentiel-quantités/référentiel-quantités';
 import { ApiClientError } from '@/services/api/http-client';
+import { queryKeys } from '@/services/api/query-keys';
+import { invalidateShoppingListQueries } from '@/services/api/query-invalidations';
 import {
   enqueuePendingShoppingListAction,
   flushPendingShoppingListActions,
@@ -43,10 +45,6 @@ import {
   type EnqueuePendingShoppingListActionInput,
 } from '@/services/offline/shopping-list-actions-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
-
-const SHOPPING_LIST_QUERY_KEY = ['/api/shopping-list'] as const;
-const STOCK_LIST_QUERY_KEY = ['/api/stock-items'] as const;
-const STOCK_EXPIRING_QUERY_KEY = ['/api/stock-items/expiring-soon'] as const;
 
 const TEMP_ITEM_ID_PREFIX = 'offline-shopping-item-';
 const DANGER_COLOR = '#D90429';
@@ -157,7 +155,7 @@ function applyOptimisticAdd(
   const categoryColor = product.category?.color ?? '#D8DBE2';
 
   queryClient.setQueriesData<ListShoppingListQueryResult>(
-    { queryKey: SHOPPING_LIST_QUERY_KEY },
+    { queryKey: queryKeys.shoppingList.list },
     (currentResponse) =>
       updateShoppingListResponse(currentResponse, (groups) => {
         let hasCategory = false;
@@ -201,7 +199,7 @@ function applyOptimisticCheck(
   checkedUnitLabel: string
 ): void {
   queryClient.setQueriesData<ListShoppingListQueryResult>(
-    { queryKey: SHOPPING_LIST_QUERY_KEY },
+    { queryKey: queryKeys.shoppingList.list },
     (currentResponse) =>
       updateShoppingListResponse(currentResponse, (groups) =>
         groups.map((group) => ({
@@ -230,7 +228,7 @@ function applyOptimisticCheck(
 
 function applyOptimisticUncheck(queryClient: QueryClient, itemId: string): void {
   queryClient.setQueriesData<ListShoppingListQueryResult>(
-    { queryKey: SHOPPING_LIST_QUERY_KEY },
+    { queryKey: queryKeys.shoppingList.list },
     (currentResponse) =>
       updateShoppingListResponse(currentResponse, (groups) =>
         groups.map((group) => ({
@@ -255,7 +253,7 @@ function applyOptimisticUncheck(queryClient: QueryClient, itemId: string): void 
 
 function applyOptimisticDelete(queryClient: QueryClient, itemId: string): void {
   queryClient.setQueriesData<ListShoppingListQueryResult>(
-    { queryKey: SHOPPING_LIST_QUERY_KEY },
+    { queryKey: queryKeys.shoppingList.list },
     (currentResponse) =>
       updateShoppingListResponse(currentResponse, (groups) =>
         removeEmptyGroups(
@@ -270,14 +268,14 @@ function applyOptimisticDelete(queryClient: QueryClient, itemId: string): void {
 
 function applyOptimisticClear(queryClient: QueryClient): void {
   queryClient.setQueriesData<ListShoppingListQueryResult>(
-    { queryKey: SHOPPING_LIST_QUERY_KEY },
+    { queryKey: queryKeys.shoppingList.list },
     (currentResponse) => updateShoppingListResponse(currentResponse, () => [])
   );
 }
 
 function applyOptimisticFinish(queryClient: QueryClient): void {
   queryClient.setQueriesData<ListShoppingListQueryResult>(
-    { queryKey: SHOPPING_LIST_QUERY_KEY },
+    { queryKey: queryKeys.shoppingList.list },
     (currentResponse) =>
       updateShoppingListResponse(currentResponse, (groups) =>
         removeEmptyGroups(
@@ -290,21 +288,6 @@ function applyOptimisticFinish(queryClient: QueryClient): void {
   );
 }
 
-async function invalidateShoppingListQueries(
-  queryClient: QueryClient,
-  includeStockQueries: boolean
-): Promise<void> {
-  const invalidations: Promise<void>[] = [
-    queryClient.invalidateQueries({ queryKey: SHOPPING_LIST_QUERY_KEY }),
-  ];
-
-  if (includeStockQueries) {
-    invalidations.push(queryClient.invalidateQueries({ queryKey: STOCK_LIST_QUERY_KEY }));
-    invalidations.push(queryClient.invalidateQueries({ queryKey: STOCK_EXPIRING_QUERY_KEY }));
-  }
-
-  await Promise.all(invalidations);
-}
 
 export default function ShoppingListScreen() {
   const queryClient = useQueryClient();

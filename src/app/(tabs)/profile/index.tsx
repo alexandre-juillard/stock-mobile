@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNetInfo } from '@react-native-community/netinfo';
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -19,6 +19,7 @@ import {
   useGetProfile,
 } from '@/services/api/generated/profil-utilisateur/profil-utilisateur';
 import { ApiClientError } from '@/services/api/http-client';
+import { invalidateProfileQueries } from '@/services/api/query-invalidations';
 import { useAuth } from '@/services/auth/auth-context';
 import {
   enqueuePendingLogoutRevoke,
@@ -39,7 +40,6 @@ import { mapErrorToUi } from '@/utils/error-mapper';
 const NOTIFICATIONS_ROUTE = '/(tabs)/profile/notifications' as Href;
 const LOGIN_ROUTE = '/(auth)/login' as Href;
 
-const PROFILE_QUERY_KEY = ['/api/users/me'] as const;
 const PROFILE_LOCALE_STORAGE_KEY = 'profile.preferred-locale.v1';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -126,9 +126,6 @@ async function toAvatarBlob(selection: PendingAvatarSelection): Promise<Blob> {
   return response.blob();
 }
 
-async function invalidateProfileQueries(queryClient: QueryClient): Promise<void> {
-  await queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
-}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -424,16 +421,10 @@ export default function ProfileScreen() {
   }, [enqueueProfileMutation, isOffline, selectedLocale]);
 
   const handleSaveTheme = useCallback(async () => {
-    const expirationAlertDays =
-      typeof profile?.expirationAlertDays === 'number' && profile.expirationAlertDays >= 1
-        ? profile.expirationAlertDays
-        : undefined;
-
     const actionInput: EnqueuePendingProfileMutationInput = {
       type: 'update_settings',
       payload: {
         theme: selectedTheme,
-        expirationAlertDays,
       },
     };
 
@@ -458,7 +449,7 @@ export default function ProfileScreen() {
     } finally {
       setIsSubmittingTheme(false);
     }
-  }, [enqueueProfileMutation, isOffline, profile, queryClient, selectedTheme]);
+  }, [enqueueProfileMutation, isOffline, queryClient, selectedTheme]);
 
   const handlePickAvatar = useCallback(async () => {
     if (isPickingAvatar || isBusy) {
