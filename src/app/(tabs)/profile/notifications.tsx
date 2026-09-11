@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, HelperText, Snackbar, Switch, Text, TextInput } from 'react-native-paper';
@@ -32,10 +32,29 @@ import { notificationSettingsSchema } from '@/utils/validation';
 
 const PUSH_ENABLED_STORAGE_KEY = 'notifications.push.enabled.v1';
 const PUSH_TOKEN_STORAGE_KEY = 'notifications.push.token.v1';
+const EXPO_GO_ANDROID_PUSH_MESSAGE =
+  'Expo Go sur Android ne supporte pas les notifications push distantes. Utilise un development build.';
+
+type ExpoNotificationsModule = typeof import('expo-notifications');
+
+let notificationsModulePromise: Promise<ExpoNotificationsModule> | null = null;
 
 interface StoredPushPreference {
   isEnabled: boolean;
   token: string | null;
+}
+
+async function getExpoNotificationsModule(): Promise<ExpoNotificationsModule> {
+  if (!notificationsModulePromise) {
+    notificationsModulePromise = import('expo-notifications');
+  }
+
+  try {
+    return await notificationsModulePromise;
+  } catch {
+    notificationsModulePromise = null;
+    throw new Error(EXPO_GO_ANDROID_PUSH_MESSAGE);
+  }
 }
 
 function shouldQueueAfterError(error: unknown): boolean {
@@ -95,11 +114,12 @@ async function writeStoredPushPreference(isEnabled: boolean, token: string | nul
 }
 
 async function requestDevicePushToken(): Promise<string> {
-  const currentPermissions = await Notifications.getPermissionsAsync();
+  const notificationsModule = await getExpoNotificationsModule();
+  const currentPermissions = await notificationsModule.getPermissionsAsync();
   let finalStatus = currentPermissions.status;
 
   if (finalStatus !== 'granted') {
-    const requestedPermissions = await Notifications.requestPermissionsAsync();
+    const requestedPermissions = await notificationsModule.requestPermissionsAsync();
     finalStatus = requestedPermissions.status;
   }
 
@@ -107,7 +127,7 @@ async function requestDevicePushToken(): Promise<string> {
     throw new Error('Autorise les notifications pour activer les alertes push.');
   }
 
-  const devicePushToken = await Notifications.getDevicePushTokenAsync();
+  const devicePushToken = await notificationsModule.getDevicePushTokenAsync();
   const rawToken = devicePushToken.data;
 
   const normalizedToken =
@@ -126,6 +146,9 @@ export default function NotificationSettingsScreen() {
 
   const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
   const isNativePushPlatform = Platform.OS === 'android' || Platform.OS === 'ios';
+  const isExpoGoAndroid =
+    Platform.OS === 'android' && Constants.executionEnvironment === 'storeClient';
+  const isPushRuntimeSupported = isNativePushPlatform && !isExpoGoAndroid;
 
   const profileQuery = useGetProfile();
   const profile = profileQuery.data?.data;
@@ -407,6 +430,11 @@ export default function NotificationSettingsScreen() {
       return;
     }
 
+    if (isExpoGoAndroid) {
+      setSnackbarMessage(EXPO_GO_ANDROID_PUSH_MESSAGE);
+      return;
+    }
+
     const platform = resolvePushPlatform();
     if (!platform) {
       setSnackbarMessage('Plateforme push non supportee.');
@@ -441,7 +469,7 @@ export default function NotificationSettingsScreen() {
 
       setSnackbarMessage(mapErrorToUi(error).message);
     }
-  }, [enqueuePushAction, isNativePushPlatform, isOffline, persistPushEnabledState]);
+  }, [enqueuePushAction, isExpoGoAndroid, isNativePushPlatform, isOffline, persistPushEnabledState]);
 
   const handleDisablePush = useCallback(async () => {
     const currentToken = registeredPushToken?.trim() ?? '';
@@ -601,15 +629,19 @@ export default function NotificationSettingsScreen() {
               <Switch
                 value={isPushEnabled}
                 onValueChange={(nextValue) => void handleTogglePush(nextValue)}
-                disabled={isBusy || isHydratingPushPreference || !isNativePushPlatform}
+                disabled={isBusy || isHydratingPushPreference || !isPushRuntimeSupported}
               />
             </View>
 
             <Text style={styles.supportingText}>
               {registeredPushToken ? 'Token appareil enregistre.' : 'Aucun token appareil enregistre.'}
             </Text>
-            {!isNativePushPlatform ? (
-              <Text style={styles.supportingText}>Les push ne sont pas disponibles sur cette plateforme.</Text>
+            {!isPushRuntimeSupported ? (
+              <Text style={styles.supportingText}>
+                {isExpoGoAndroid
+                  ? EXPO_GO_ANDROID_PUSH_MESSAGE
+                  : 'Les push ne sont pas disponibles sur cette plateforme.'}
+              </Text>
             ) : null}
           </Card.Content>
         </Card>
