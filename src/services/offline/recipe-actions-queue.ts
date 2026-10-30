@@ -1,24 +1,22 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { ApiClientError } from '@/services/api/http-client';
+import {
+  createListStorage,
+  createPersistentQueue,
+  createQueueEntryId,
+  createQueuedEntryMeta,
+  type QueueFlushResult,
+  type QueuedEntryMeta,
+} from '@/services/offline/offline-queue';
 
-const RECIPE_ACTIONS_QUEUE_KEY = 'offline.recipes.actions.v1';
-const RECIPE_REPLAY_CONFLICTS_KEY = 'offline.recipes.replay-conflicts.v1';
-
-interface PendingRecipeActionBase {
+interface PendingConsumeRecipeAction extends QueuedEntryMeta {
   actionId: string;
-  queuedAt: string;
-  attempts: number;
-  lastErrorMessage?: string;
-}
-
-interface PendingConsumeRecipeAction extends PendingRecipeActionBase {
   type: 'consume';
   recipeId: string;
   force: boolean;
 }
 
-interface PendingDeleteRecipeAction extends PendingRecipeActionBase {
+interface PendingDeleteRecipeAction extends QueuedEntryMeta {
+  actionId: string;
   type: 'delete';
   recipeId: string;
 }
@@ -66,17 +64,15 @@ interface RecipeActionSyncHandlers {
   delete: (recipeId: string) => Promise<void>;
 }
 
-export interface FlushPendingRecipeActionsResult {
-  status: 'none' | 'synced' | 'retry_later' | 'failed' | 'business_conflict';
-  syncedCount: number;
-  retryCount: number;
-  failedCount: number;
+export interface FlushPendingRecipeActionsResult extends Omit<QueueFlushResult, 'status'> {
+  status: QueueFlushResult['status'] | 'business_conflict';
   conflictCount: number;
 }
 
-function createId(): string {
-  return `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-}
+const actionsQueue = createPersistentQueue<PendingRecipeAction>('offline.recipes.actions.v1');
+const replayConflictsStorage = createListStorage<RecipeReplayConflictRecord>(
+  'offline.recipes.replay-conflicts.v1'
+);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -190,10 +186,9 @@ export function extractRecipeConsumeConflictFromError(error: unknown): RecipeCon
 }
 
 function toPendingRecipeAction(input: EnqueuePendingRecipeActionInput): PendingRecipeAction {
-  const baseAction: PendingRecipeActionBase = {
-    actionId: createId(),
-    queuedAt: new Date().toISOString(),
-    attempts: 0,
+  const baseAction = {
+    actionId: createQueueEntryId(),
+    ...createQueuedEntryMeta(),
   };
 
   if (input.type === 'consume') {
@@ -212,72 +207,13 @@ function toPendingRecipeAction(input: EnqueuePendingRecipeActionInput): PendingR
   };
 }
 
-async function readActionsQueue(): Promise<PendingRecipeAction[]> {
-  const rawValue = await AsyncStorage.getItem(RECIPE_ACTIONS_QUEUE_KEY);
-  if (!rawValue) {
-    return [];
-  }
-
-  try {
-    const parsedValue = JSON.parse(rawValue);
-    if (!Array.isArray(parsedValue)) {
-      await AsyncStorage.removeItem(RECIPE_ACTIONS_QUEUE_KEY);
-      return [];
-    }
-
-    return parsedValue as PendingRecipeAction[];
-  } catch {
-    await AsyncStorage.removeItem(RECIPE_ACTIONS_QUEUE_KEY);
-    return [];
-  }
-}
-
-async function writeActionsQueue(queue: PendingRecipeAction[]): Promise<void> {
-  if (queue.length === 0) {
-    await AsyncStorage.removeItem(RECIPE_ACTIONS_QUEUE_KEY);
-    return;
-  }
-
-  await AsyncStorage.setItem(RECIPE_ACTIONS_QUEUE_KEY, JSON.stringify(queue));
-}
-
-async function readReplayConflicts(): Promise<RecipeReplayConflictRecord[]> {
-  const rawValue = await AsyncStorage.getItem(RECIPE_REPLAY_CONFLICTS_KEY);
-  if (!rawValue) {
-    return [];
-  }
-
-  try {
-    const parsedValue = JSON.parse(rawValue);
-    if (!Array.isArray(parsedValue)) {
-      await AsyncStorage.removeItem(RECIPE_REPLAY_CONFLICTS_KEY);
-      return [];
-    }
-
-    return parsedValue as RecipeReplayConflictRecord[];
-  } catch {
-    await AsyncStorage.removeItem(RECIPE_REPLAY_CONFLICTS_KEY);
-    return [];
-  }
-}
-
-async function writeReplayConflicts(conflicts: RecipeReplayConflictRecord[]): Promise<void> {
-  if (conflicts.length === 0) {
-    await AsyncStorage.removeItem(RECIPE_REPLAY_CONFLICTS_KEY);
-    return;
-  }
-
-  await AsyncStorage.setItem(RECIPE_REPLAY_CONFLICTS_KEY, JSON.stringify(conflicts));
-}
-
 async function appendReplayConflicts(conflictsToAdd: RecipeReplayConflictRecord[]): Promise<void> {
   if (conflictsToAdd.length === 0) {
     return;
   }
 
-  const existingConflicts = await readReplayConflicts();
-  const nextConflicts = [...conflictsToAdd, ...existingConflicts];
-  await writeReplayConflicts(nextConflicts);
+  const existingConflicts = await replayConflictsStorage.read();
+  await replayConflictsStorage.write([...conflictsToAdd, ...existingConflicts]);
 }
 
 async function executeRecipeAction(
@@ -295,23 +231,15 @@ async function executeRecipeAction(
 export async function enqueuePendingRecipeAction(
   input: EnqueuePendingRecipeActionInput
 ): Promise<void> {
-  const queue = await readActionsQueue();
-  queue.push(toPendingRecipeAction(input));
-  await writeActionsQueue(queue);
+  await actionsQueue.append(toPendingRecipeAction(input));
 }
 
 export async function getPendingRecipeActionsCount(recipeId?: string): Promise<number> {
-  const queue = await readActionsQueue();
-
-  if (!recipeId) {
-    return queue.length;
-  }
-
-  return queue.filter((action) => action.recipeId === recipeId).length;
+  return actionsQueue.count(recipeId ? (action) => action.recipeId === recipeId : undefined);
 }
 
 export async function listRecipeReplayConflicts(recipeId?: string): Promise<RecipeReplayConflictRecord[]> {
-  const conflicts = await readReplayConflicts();
+  const conflicts = await replayConflictsStorage.read();
 
   if (!recipeId) {
     return conflicts;
@@ -322,107 +250,46 @@ export async function listRecipeReplayConflicts(recipeId?: string): Promise<Reci
 
 export async function clearRecipeReplayConflicts(recipeId?: string): Promise<void> {
   if (!recipeId) {
-    await AsyncStorage.removeItem(RECIPE_REPLAY_CONFLICTS_KEY);
+    await replayConflictsStorage.clear();
     return;
   }
 
-  const conflicts = await readReplayConflicts();
-  const nextConflicts = conflicts.filter((conflict) => conflict.recipeId !== recipeId);
-  await writeReplayConflicts(nextConflicts);
+  const conflicts = await replayConflictsStorage.read();
+  await replayConflictsStorage.write(conflicts.filter((conflict) => conflict.recipeId !== recipeId));
 }
 
 export async function flushPendingRecipeActions(
   syncHandlers: RecipeActionSyncHandlers
 ): Promise<FlushPendingRecipeActionsResult> {
-  const queue = await readActionsQueue();
-  if (queue.length === 0) {
-    return {
-      status: 'none',
-      syncedCount: 0,
-      retryCount: 0,
-      failedCount: 0,
-      conflictCount: 0,
-    };
-  }
-
-  const retryQueue: PendingRecipeAction[] = [];
   const replayConflicts: RecipeReplayConflictRecord[] = [];
-  let syncedCount = 0;
-  let failedCount = 0;
 
-  for (const action of queue) {
+  const result = await actionsQueue.flush(async (action) => {
     try {
       await executeRecipeAction(action, syncHandlers);
-      syncedCount += 1;
     } catch (error) {
-      if (action.type === 'consume') {
-        const conflict = extractRecipeConsumeConflictFromError(error);
-        if (conflict) {
-          replayConflicts.push({
-            conflictId: createId(),
-            actionId: action.actionId,
-            recipeId: action.recipeId,
-            conflict,
-            recordedAt: new Date().toISOString(),
-          });
-          failedCount += 1;
-          continue;
-        }
+      // Un conflit 409 est une erreur 4xx : l'action est abandonnée par la file,
+      // mais on conserve le détail pour l'afficher à l'utilisateur.
+      const conflict = action.type === 'consume' ? extractRecipeConsumeConflictFromError(error) : null;
+      if (conflict) {
+        replayConflicts.push({
+          conflictId: createQueueEntryId(),
+          actionId: action.actionId,
+          recipeId: action.recipeId,
+          conflict,
+          recordedAt: new Date().toISOString(),
+        });
       }
 
-      if (error instanceof ApiClientError && error.status >= 400 && error.status < 500) {
-        failedCount += 1;
-        continue;
-      }
-
-      retryQueue.push({
-        ...action,
-        attempts: action.attempts + 1,
-        lastErrorMessage: error instanceof Error ? error.message : 'Erreur de synchronisation',
-      });
+      throw error;
     }
-  }
+  });
 
-  await writeActionsQueue(retryQueue);
   await appendReplayConflicts(replayConflicts);
 
-  if (retryQueue.length > 0) {
-    return {
-      status: 'retry_later',
-      syncedCount,
-      retryCount: retryQueue.length,
-      failedCount,
-      conflictCount: replayConflicts.length,
-    };
+  const conflictCount = replayConflicts.length;
+  if (result.status === 'failed' && conflictCount > 0) {
+    return { ...result, status: 'business_conflict', conflictCount };
   }
 
-  if (replayConflicts.length > 0) {
-    return {
-      status: 'business_conflict',
-      syncedCount,
-      retryCount: 0,
-      failedCount,
-      conflictCount: replayConflicts.length,
-    };
-  }
-
-  if (failedCount > 0) {
-    return {
-      status: 'failed',
-      syncedCount,
-      retryCount: 0,
-      failedCount,
-      conflictCount: 0,
-    };
-  }
-
-  return {
-    status: 'synced',
-    syncedCount,
-    retryCount: 0,
-    failedCount: 0,
-    conflictCount: 0,
-  };
+  return { ...result, conflictCount };
 }
-
-

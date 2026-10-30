@@ -1,8 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -19,6 +18,8 @@ import {
 } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { RECIPES_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import type {
   ProductResponse,
   RecipeDetailResponse,
@@ -35,7 +36,7 @@ import {
 } from '@/services/api/generated/recettes/recettes';
 import { useGetUnitsByType } from '@/services/api/generated/référentiel-quantités/référentiel-quantités';
 import { useListStockItems } from '@/services/api/generated/stock/stock';
-import { ApiClientError } from '@/services/api/http-client';
+import { shouldQueueAfterError } from '@/services/offline/offline-queue';
 import {
   enqueuePendingRecipeFormSubmission,
   flushPendingRecipeFormSubmissions,
@@ -46,13 +47,13 @@ import {
 } from '@/services/offline/recipe-form-submissions-queue';
 import { invalidateRecipeFormQueries } from '@/services/api/query-invalidations';
 import { mapErrorToUi } from '@/utils/error-mapper';
+import { formatNumber, parseDecimalInput } from '@/utils/format';
+import { getFirstRouteParam } from '@/utils/route-params';
 import {
   recipeFormSchema,
   type RecipeFormValues,
   type RecipeIngredientFormValues,
 } from '@/utils/validation';
-
-const RECIPES_ROUTE = '/(tabs)/recipes' as Href;
 
 const DEFAULT_RECIPE_FORM_VALUES: RecipeFormValues = {
   name: '',
@@ -72,24 +73,6 @@ interface IngredientDialogState {
 interface UnitOption {
   id: string;
   label: string;
-}
-
-function getFirstRouteParamValue(param: string | string[] | undefined): string | null {
-  if (!param) {
-    return null;
-  }
-
-  return Array.isArray(param) ? (param[0] ?? null) : param;
-}
-
-function parseQuantityInput(value: string): number {
-  return Number.parseFloat(value.replace(',', '.'));
-}
-
-function formatQuantityValue(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    maximumFractionDigits: 3,
-  }).format(value);
 }
 
 function toRecipeFormValuesFromDetail(recipeDetail: RecipeDetailResponse): RecipeFormValues {
@@ -124,10 +107,6 @@ function toRecipeFormValuesFromDetail(recipeDetail: RecipeDetailResponse): Recip
   };
 }
 
-function shouldQueueSubmissionAfterError(error: unknown): boolean {
-  return !(error instanceof ApiClientError && error.status >= 400 && error.status < 500);
-}
-
 function areQuantitiesEquivalent(first: number, second: number): boolean {
   return Math.abs(first - second) < 0.0001;
 }
@@ -139,7 +118,7 @@ function toSubmissionPayload(
 ): EnqueuePendingRecipeFormSubmissionInput {
   const ingredients: RecipeFormSubmissionIngredient[] = formValues.ingredients.map((ingredient) => ({
     productId: ingredient.productId,
-    quantity: parseQuantityInput(ingredient.quantity),
+    quantity: parseDecimalInput(ingredient.quantity),
     unitId: ingredient.unitId,
   }));
 
@@ -266,13 +245,11 @@ function toUnitOptions(
 export default function RecipeFormScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
 
   const { recipeId: recipeIdParam } = useLocalSearchParams<{ recipeId?: string | string[] }>();
-  const recipeId = useMemo(() => getFirstRouteParamValue(recipeIdParam), [recipeIdParam]);
+  const recipeId = useMemo(() => getFirstRouteParam(recipeIdParam), [recipeIdParam]);
   const isEditing = Boolean(recipeId);
-
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const [ingredientDialog, setIngredientDialog] = useState<IngredientDialogState | null>(null);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
@@ -515,7 +492,7 @@ export default function RecipeFormScreen() {
       return;
     }
 
-    const quantityNumber = parseQuantityInput(ingredientDialog.quantity);
+    const quantityNumber = parseDecimalInput(ingredientDialog.quantity);
     if (!Number.isFinite(quantityNumber) || quantityNumber <= 0) {
       setIngredientDialog((currentDialog) => {
         if (!currentDialog) {
@@ -672,7 +649,7 @@ export default function RecipeFormScreen() {
       await refreshPendingSubmissionsCount();
       router.replace(RECIPES_ROUTE);
     } catch (error) {
-      if (shouldQueueSubmissionAfterError(error)) {
+      if (shouldQueueAfterError(error)) {
         await enqueuePendingRecipeFormSubmission(submissionInput);
         await refreshPendingSubmissionsCount();
         setSnackbarMessage('Reseau instable: soumission placee en file hors ligne.');
@@ -799,7 +776,7 @@ export default function RecipeFormScreen() {
                           <View style={styles.ingredientTextBlock}>
                             <Text variant="titleMedium">{ingredient.productName}</Text>
                             <Text style={styles.ingredientMetaText}>
-                              {formatQuantityValue(parseQuantityInput(ingredient.quantity))} {ingredient.unitLabel}
+                              {formatNumber(parseDecimalInput(ingredient.quantity), 3)} {ingredient.unitLabel}
                             </Text>
                           </View>
                           <MaterialCommunityIcons name="food-variant" size={18} color="#60646C" />

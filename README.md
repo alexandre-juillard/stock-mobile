@@ -4,9 +4,9 @@ Application mobile Expo / React Native pour PantryFlow, connectee a `stock-api`.
 
 ## Prerequis
 
-- Node.js 20+
+- Node.js 22.13+ (branche 22), 24.3+ (branche 24), ou 26+
 - npm 10+
-- Expo Go (device) ou emulateur Android/iOS
+- Expo Go compatible SDK 58 (device) ou emulateur Android/iOS
 
 ## Configuration locale
 
@@ -34,6 +34,15 @@ npm run start
 npm run typecheck
 npm run lint
 ```
+
+Apres une mise a jour du SDK Expo, arreter le serveur Metro existant et le
+relancer en vidant son cache:
+
+```powershell
+npm run start -- --clear
+```
+
+Le SDK du projet et celui pris en charge par Expo Go doivent correspondre.
 
 ## Generation du client API
 

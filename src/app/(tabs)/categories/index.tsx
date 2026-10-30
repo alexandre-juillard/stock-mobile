@@ -1,8 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { FlatList, StyleSheet, View } from 'react-native';
@@ -20,6 +19,8 @@ import {
 } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { STOCK_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import {
   useCreateCategory,
   useDeleteCategory,
@@ -27,7 +28,6 @@ import {
   useUpdateCategory,
 } from '@/services/api/generated/catégories/catégories';
 import type { CategoryResponse } from '@/services/api/generated/model';
-import { ApiClientError } from '@/services/api/http-client';
 import { queryKeys } from '@/services/api/query-keys';
 import { invalidateCategoryRelatedQueries } from '@/services/api/query-invalidations';
 import {
@@ -36,10 +36,9 @@ import {
   getPendingCategoryActionsCount,
   type EnqueuePendingCategoryActionInput,
 } from '@/services/offline/categories-queue';
+import { shouldQueueAfterError } from '@/services/offline/offline-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
 import { categoryFormSchema, type CategoryFormValues } from '@/utils/validation';
-
-const STOCK_ROUTE = '/(tabs)/stock' as Href;
 
 const DEFAULT_CATEGORY_COLOR = '#2D6A4F';
 const DANGER_COLOR = '#D90429';
@@ -68,10 +67,6 @@ type CategoryDialogMode = 'create' | 'edit';
 
 function normalizeHexColor(value: string): string {
   return value.trim().toUpperCase();
-}
-
-function shouldQueueActionAfterError(error: unknown): boolean {
-  return !(error instanceof ApiClientError && error.status >= 400 && error.status < 500);
 }
 
 function updateCategoryInResponse<T extends CategoriesResponseShape>(
@@ -144,19 +139,16 @@ function applyOptimisticCategoryDelete(queryClient: QueryClient, categoryId: str
   );
 }
 
-
 export default function CategoriesScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
 
   const [dialogMode, setDialogMode] = useState<CategoryDialogMode | null>(null);
   const [editingCategory, setEditingCategory] = useState<CategoryResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CategoryResponse | null>(null);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [isSyncingQueue, setIsSyncingQueue] = useState(false);
-
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const categoriesQuery = useGetCategories();
   const createCategoryMutation = useCreateCategory();
@@ -313,7 +305,7 @@ export default function CategoriesScreen() {
         closeFormDialog();
         setSnackbarMessage('Categorie creee.');
       } catch (error) {
-        if (shouldQueueActionAfterError(error)) {
+        if (shouldQueueAfterError(error)) {
           await enqueuePendingCategoryAction(actionInput);
           await refreshPendingActionsCount();
           closeFormDialog();
@@ -357,7 +349,7 @@ export default function CategoriesScreen() {
       closeFormDialog();
       setSnackbarMessage('Categorie mise a jour.');
     } catch (error) {
-      if (shouldQueueActionAfterError(error)) {
+      if (shouldQueueAfterError(error)) {
         applyOptimisticCategoryUpdate(queryClient, categoryId, payload);
         await enqueuePendingCategoryAction(actionInput);
         await refreshPendingActionsCount();
@@ -398,7 +390,7 @@ export default function CategoriesScreen() {
       setDeleteTarget(null);
       setSnackbarMessage('Categorie supprimee.');
     } catch (error) {
-      if (shouldQueueActionAfterError(error)) {
+      if (shouldQueueAfterError(error)) {
         applyOptimisticCategoryDelete(queryClient, categoryId);
         await enqueuePendingCategoryAction(actionInput);
         await refreshPendingActionsCount();
@@ -702,5 +694,4 @@ const styles = StyleSheet.create({
     bottom: 16,
   },
 });
-
 

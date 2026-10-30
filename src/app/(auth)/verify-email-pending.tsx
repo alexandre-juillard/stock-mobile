@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useMutation } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -7,12 +6,14 @@ import { Controller, useForm } from 'react-hook-form';
 import { Button, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { resendConfirmationEmail } from '@/services/auth/auth-api';
 import {
   enqueuePendingResendConfirmation,
   flushPendingResendConfirmation,
 } from '@/services/offline/resend-confirmation-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
+import { getFirstRouteParam } from '@/utils/route-params';
 import {
   resendConfirmationSchema,
   type ResendConfirmationFormValues,
@@ -20,21 +21,16 @@ import {
 
 const COOLDOWN_SECONDS = 30;
 
-function toStringParam(value: string | string[] | undefined): string {
-  if (Array.isArray(value)) {
-    return value[0] ?? '';
-  }
-
-  return value ?? '';
-}
-
 export default function VerifyEmailPendingScreen() {
-  const params = useLocalSearchParams();
-  const pendingParam = toStringParam(params.pending as string | string[] | undefined);
-  const initialEmail = toStringParam(params.email as string | string[] | undefined);
+  const params = useLocalSearchParams<{
+    pending?: string | string[];
+    email?: string | string[];
+  }>();
+  const pendingParam = getFirstRouteParam(params.pending) ?? '';
+  const initialEmail = getFirstRouteParam(params.email) ?? '';
   const isPendingSync = pendingParam === '1';
 
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
@@ -49,7 +45,6 @@ export default function VerifyEmailPendingScreen() {
     mutationFn: resendConfirmationEmail,
   });
 
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
   const resendLabel = useMemo(() => {
     if (cooldownRemaining <= 0) {
       return 'Renvoyer l email';
@@ -162,7 +157,7 @@ export default function VerifyEmailPendingScreen() {
 
       <Button
         mode="contained"
-        onPress={onResend}
+        onPress={() => void onResend()}
         loading={resendMutation.isPending}
         disabled={cooldownRemaining > 0 || resendMutation.isPending}>
         {resendLabel}
@@ -174,4 +169,3 @@ export default function VerifyEmailPendingScreen() {
     </ScreenShell>
   );
 }
-

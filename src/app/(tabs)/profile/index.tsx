@@ -1,14 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Chip, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { LOGIN_ROUTE, NOTIFICATIONS_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { logout as revokeRefreshToken } from '@/services/api/generated/authentification/authentification';
 import {
   deleteAvatar,
@@ -18,7 +19,7 @@ import {
   uploadAvatar,
   useGetProfile,
 } from '@/services/api/generated/profil-utilisateur/profil-utilisateur';
-import { ApiClientError } from '@/services/api/http-client';
+import { resolveApiAssetUri } from '@/services/api/http-client';
 import { invalidateProfileQueries } from '@/services/api/query-invalidations';
 import { useAuth } from '@/services/auth/auth-context';
 import {
@@ -26,6 +27,7 @@ import {
   flushPendingLogoutRevokes,
   getPendingLogoutRevokesCount,
 } from '@/services/offline/logout-revoke-queue';
+import { shouldQueueAfterError } from '@/services/offline/offline-queue';
 import {
   clearPendingProfileMutations,
   enqueuePendingProfileMutation,
@@ -36,9 +38,6 @@ import {
   type ProfileTheme,
 } from '@/services/offline/profile-mutations-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
-
-const NOTIFICATIONS_ROUTE = '/(tabs)/profile/notifications' as Href;
-const LOGIN_ROUTE = '/(auth)/login' as Href;
 
 const PROFILE_LOCALE_STORAGE_KEY = 'profile.preferred-locale.v1';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -63,10 +62,6 @@ interface ProfileFieldErrors {
   firstName?: string;
   lastName?: string;
   email?: string;
-}
-
-function shouldQueueAfterError(error: unknown): boolean {
-  return !(error instanceof ApiClientError && error.status >= 400 && error.status < 500);
 }
 
 function isThemeValue(value: string | undefined): value is ProfileTheme {
@@ -126,14 +121,11 @@ async function toAvatarBlob(selection: PendingAvatarSelection): Promise<Blob> {
   return response.blob();
 }
 
-
 export default function ProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
   const { clearSession, refreshToken } = useAuth();
-
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const profileQuery = useGetProfile();
   const profile = profileQuery.data?.data;
@@ -584,7 +576,8 @@ export default function ProfileScreen() {
     return profileForm.email.trim() || profile?.email || 'Email non renseigne';
   }, [profile?.email, profileForm.email]);
 
-  const displayAvatarUri = avatarPreviewUri ?? profile?.avatarUrl ?? null;
+  const displayAvatarUri =
+    avatarPreviewUri ?? (profile?.avatarUrl ? resolveApiAssetUri(profile.avatarUrl) : null);
 
   const isRefreshing = profileQuery.isFetching || isSyncingQueue;
   const disableProfileActions = isBusy || (profileQuery.isLoading && !profile);

@@ -1,5 +1,4 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
@@ -17,6 +16,7 @@ import {
 } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import {
   addShoppingListItem,
   checkShoppingListItem,
@@ -35,9 +35,9 @@ import type {
 } from '@/services/api/generated/model';
 import { useListProducts } from '@/services/api/generated/produits/produits';
 import { useGetUnitsByType } from '@/services/api/generated/référentiel-quantités/référentiel-quantités';
-import { ApiClientError } from '@/services/api/http-client';
 import { queryKeys } from '@/services/api/query-keys';
 import { invalidateShoppingListQueries } from '@/services/api/query-invalidations';
+import { shouldQueueAfterError } from '@/services/offline/offline-queue';
 import {
   enqueuePendingShoppingListAction,
   flushPendingShoppingListActions,
@@ -45,6 +45,7 @@ import {
   type EnqueuePendingShoppingListActionInput,
 } from '@/services/offline/shopping-list-actions-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
+import { formatNumber, normalizeQuantity, parseDecimalInput } from '@/utils/format';
 
 const TEMP_ITEM_ID_PREFIX = 'offline-shopping-item-';
 const DANGER_COLOR = '#D90429';
@@ -69,24 +70,8 @@ interface UnitOption {
   label: string;
 }
 
-function parseQuantityInput(value: string): number {
-  return Number.parseFloat(value.replace(',', '.'));
-}
-
-function formatQuantity(value: number | undefined): string {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return '0';
-  }
-
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
-}
-
 function isOptimisticItem(itemId: string | undefined): boolean {
   return Boolean(itemId && itemId.startsWith(TEMP_ITEM_ID_PREFIX));
-}
-
-function shouldQueueAfterError(error: unknown): boolean {
-  return !(error instanceof ApiClientError && error.status >= 400 && error.status < 500);
 }
 
 function toUnitOptions(
@@ -288,10 +273,9 @@ function applyOptimisticFinish(queryClient: QueryClient): void {
   );
 }
 
-
 export default function ShoppingListScreen() {
   const queryClient = useQueryClient();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
 
   const [addItemDialog, setAddItemDialog] = useState<AddItemDialogState | null>(null);
   const [checkItemDialog, setCheckItemDialog] = useState<CheckItemDialogState | null>(null);
@@ -300,8 +284,6 @@ export default function ShoppingListScreen() {
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const [isSyncingQueue, setIsSyncingQueue] = useState(false);
-
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const shoppingListQuery = useListShoppingList();
   const productsQuery = useListProducts();
@@ -581,7 +563,7 @@ export default function ShoppingListScreen() {
       return;
     }
 
-    const checkedQuantity = parseQuantityInput(checkItemDialog.quantity);
+    const checkedQuantity = parseDecimalInput(checkItemDialog.quantity);
     if (!Number.isFinite(checkedQuantity) || checkedQuantity <= 0) {
       setCheckItemDialog((currentDialog) => {
         if (!currentDialog) {
@@ -911,7 +893,7 @@ export default function ShoppingListScreen() {
 
                     {shoppingItem.isChecked ? (
                       <Text style={styles.checkedDetailsText}>
-                        Achat: {formatQuantity(shoppingItem.checkedQuantity)}{' '}
+                        Achat: {formatNumber(normalizeQuantity(shoppingItem.checkedQuantity))}{' '}
                         {shoppingItem.checkedUnit?.label ?? shoppingItem.checkedUnit?.code ?? ''}
                       </Text>
                     ) : null}

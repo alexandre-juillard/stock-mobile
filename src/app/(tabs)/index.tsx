@@ -1,6 +1,6 @@
-import { Redirect, type Href } from 'expo-router';
+import { Redirect } from 'expo-router';
 
-const STOCK_ROUTE = '/(tabs)/stock' as Href;
+import { STOCK_ROUTE } from '@/constants/routes';
 
 export default function TabsIndex() {
   return <Redirect href={STOCK_ROUTE} />;

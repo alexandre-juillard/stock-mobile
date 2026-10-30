@@ -1,12 +1,13 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Dialog, Portal, Snackbar, Text } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { buildRecipeFormRoute, RECIPES_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { useAddShoppingListItem } from '@/services/api/generated/liste-de-courses/liste-de-courses';
 import type { RecipeIngredientResponse, StockItemResponse } from '@/services/api/generated/model';
 import {
@@ -20,6 +21,7 @@ import { useListStockItems } from '@/services/api/generated/stock/stock';
 import { ApiClientError } from '@/services/api/http-client';
 import { queryKeys } from '@/services/api/query-keys';
 import { invalidateRecipeRelatedQueries } from '@/services/api/query-invalidations';
+import { shouldQueueAfterError } from '@/services/offline/offline-queue';
 import {
   clearRecipeReplayConflicts,
   enqueuePendingRecipeAction,
@@ -31,9 +33,8 @@ import {
   type RecipeConsumeConflict,
 } from '@/services/offline/recipe-actions-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
-
-const RECIPES_ROUTE = '/(tabs)/recipes' as Href;
-const RECIPE_FORM_ROUTE = '/(tabs)/recipes/form';
+import { formatNumber, normalizeQuantity } from '@/utils/format';
+import { getFirstRouteParam } from '@/utils/route-params';
 
 const DANGER_COLOR = '#D90429';
 const WARNING_COLOR = '#E9C46A';
@@ -55,28 +56,8 @@ interface MissingProductCandidate {
   name: string;
 }
 
-function getFirstRouteParamValue(param: string | string[] | undefined): string | null {
-  if (!param) {
-    return null;
-  }
-
-  return Array.isArray(param) ? (param[0] ?? null) : param;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function normalizeQuantity(value: number | undefined): number {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return 0;
-  }
-
-  return value;
-}
-
-function formatQuantity(value: number): string {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
 }
 
 function extractConsumeResultCount(payload: unknown): number {
@@ -86,10 +67,6 @@ function extractConsumeResultCount(payload: unknown): number {
 
   const rawResults = payload.results;
   return Array.isArray(rawResults) ? rawResults.length : 0;
-}
-
-function shouldQueueAfterError(error: unknown): boolean {
-  return !(error instanceof ApiClientError && error.status >= 400 && error.status < 500);
 }
 
 function evaluateIngredientAvailability(
@@ -231,18 +208,16 @@ function getIngredientStatusVisual(status: IngredientAvailabilityStatus): {
 export default function RecipeDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
 
   const { recipeId: recipeIdParam } = useLocalSearchParams<{ recipeId?: string | string[] }>();
-  const recipeId = useMemo(() => getFirstRouteParamValue(recipeIdParam), [recipeIdParam]);
+  const recipeId = useMemo(() => getFirstRouteParam(recipeIdParam), [recipeIdParam]);
 
   const [consumeConflict, setConsumeConflict] = useState<RecipeConsumeConflict | null>(null);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [isDeleteDialogVisible, setIsDeleteDialogVisible] = useState(false);
   const [isSyncingQueue, setIsSyncingQueue] = useState(false);
   const [isAddingMissingToShoppingList, setIsAddingMissingToShoppingList] = useState(false);
-
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const recipeQuery = useGetRecipe(recipeId ?? '', {
     query: {
@@ -551,7 +526,7 @@ export default function RecipeDetailScreen() {
       return;
     }
 
-    router.push(`${RECIPE_FORM_ROUTE}?recipeId=${encodeURIComponent(recipeId)}` as Href);
+    router.push(buildRecipeFormRoute(recipeId));
   }, [recipeId, router]);
 
   const handleDismissConflict = useCallback(async () => {
@@ -660,8 +635,8 @@ export default function RecipeDetailScreen() {
                     <Text variant="labelLarge">Quantite insuffisante</Text>
                     {activeConflict.insufficient.map((insufficientItem) => (
                       <Text key={`insufficient-${insufficientItem.productId}`} style={styles.conflictListItem}>
-                        - {insufficientItem.name}: {formatQuantity(insufficientItem.available)} dispo /{' '}
-                        {formatQuantity(insufficientItem.required)} requis
+                        - {insufficientItem.name}: {formatNumber(insufficientItem.available)} dispo /{' '}
+                        {formatNumber(insufficientItem.required)} requis
                       </Text>
                     ))}
                   </View>
@@ -713,10 +688,10 @@ export default function RecipeDetailScreen() {
                       <View style={styles.ingredientTextBlock}>
                         <Text variant="titleMedium">{ingredientItem.productName}</Text>
                         <Text style={styles.ingredientMetaText}>
-                          Requis: {formatQuantity(ingredientItem.requiredQuantity)} {ingredientItem.requiredUnitLabel}
+                          Requis: {formatNumber(ingredientItem.requiredQuantity)} {ingredientItem.requiredUnitLabel}
                         </Text>
                         <Text style={styles.ingredientMetaText}>
-                          Disponible: {formatQuantity(ingredientItem.availableQuantity)}{' '}
+                          Disponible: {formatNumber(ingredientItem.availableQuantity)}{' '}
                           {ingredientItem.availableUnitLabel}
                         </Text>
                         <Text style={[styles.ingredientStatusText, { color: statusVisual.color }]}>

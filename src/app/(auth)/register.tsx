@@ -1,24 +1,24 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, Snackbar, Text } from 'react-native-paper';
 
+import { FormTextField } from '@/components/ui/form-text-field';
+import { PasswordTextField } from '@/components/ui/password-text-field';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { LOGIN_ROUTE, VERIFY_EMAIL_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { registerWithEmail } from '@/services/auth/auth-api';
 import { enqueuePendingRegister, flushPendingRegister } from '@/services/offline/register-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
 import { registerSchema, type RegisterFormValues } from '@/utils/validation';
 
-const LOGIN_ROUTE = '/(auth)/login' as Href;
-const VERIFY_EMAIL_ROUTE = '/(auth)/verify-email-pending' as Href;
-
 export default function RegisterScreen() {
   const router = useRouter();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
   const { control, handleSubmit, formState } = useForm<RegisterFormValues>({
@@ -34,8 +34,6 @@ export default function RegisterScreen() {
   const registerMutation = useMutation({
     mutationFn: registerWithEmail,
   });
-
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   useEffect(() => {
     if (isOffline || registerMutation.isPending) {
@@ -108,8 +106,7 @@ export default function RegisterScreen() {
         control={control}
         name="firstName"
         render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            mode="outlined"
+          <FormTextField
             label="Prenom"
             value={value}
             onBlur={onBlur}
@@ -126,8 +123,7 @@ export default function RegisterScreen() {
         control={control}
         name="lastName"
         render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            mode="outlined"
+          <FormTextField
             label="Nom"
             value={value}
             onBlur={onBlur}
@@ -144,8 +140,7 @@ export default function RegisterScreen() {
         control={control}
         name="email"
         render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            mode="outlined"
+          <FormTextField
             label="Email"
             keyboardType="email-address"
             autoCapitalize="none"
@@ -165,12 +160,9 @@ export default function RegisterScreen() {
         control={control}
         name="password"
         render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            mode="outlined"
+          <PasswordTextField
             label="Mot de passe"
-            secureTextEntry
             autoCapitalize="none"
-            autoComplete="password"
             value={value}
             onBlur={onBlur}
             onChangeText={onChange}
@@ -182,7 +174,7 @@ export default function RegisterScreen() {
         {formState.errors.password?.message}
       </HelperText>
 
-      <Button mode="contained" onPress={handleRegister} loading={registerMutation.isPending}>
+      <Button mode="contained" onPress={() => void handleRegister()} loading={registerMutation.isPending}>
         Creer le compte
       </Button>
 
@@ -208,6 +200,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   links: {
     marginTop: 8,
+    alignItems: 'center',
   },
   link: {
     color: '#2D6A4F',
@@ -216,4 +209,3 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
-

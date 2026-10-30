@@ -1,13 +1,14 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Dialog, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { StockStatusBadge } from '@/components/ui/stock-status-badge';
+import { buildStockFormRoute, STOCK_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import type { StockItemResponse } from '@/services/api/generated/model';
 import type {
   ListExpiringSoonQueryResult,
@@ -19,9 +20,10 @@ import {
   useListStockItems,
   useUpdateQuantity,
 } from '@/services/api/generated/stock/stock';
-import { ApiClientError } from '@/services/api/http-client';
+import { resolveApiAssetUri } from '@/services/api/http-client';
 import { queryKeys } from '@/services/api/query-keys';
 import { invalidateStockQueries } from '@/services/api/query-invalidations';
+import { shouldQueueAfterError } from '@/services/offline/offline-queue';
 import {
   enqueuePendingStockItemAction,
   flushPendingStockItemActions,
@@ -29,9 +31,8 @@ import {
   type EnqueuePendingStockItemActionInput,
 } from '@/services/offline/stock-item-actions-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
-
-const STOCK_ROUTE = '/(tabs)/stock' as Href;
-const STOCK_FORM_PATH = '/(tabs)/stock/form';
+import { formatDate, formatNumber, normalizeQuantity, parseDecimalInput } from '@/utils/format';
+import { getFirstRouteParam } from '@/utils/route-params';
 
 const OUTLINED_BORDER_COLOR = '#D8DBE2';
 const DANGER_COLOR = '#D90429';
@@ -40,20 +41,8 @@ interface StockProductWithPhotoUrl {
   photoUrl?: string;
 }
 
-function getFirstRouteParamValue(param: string | string[] | undefined): string | null {
-  if (!param) {
-    return null;
-  }
-
-  return Array.isArray(param) ? (param[0] ?? null) : param;
-}
-
 function formatNumberValue(value: number | undefined): string {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return '0';
-  }
-
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
+  return formatNumber(normalizeQuantity(value));
 }
 
 function formatDateValue(value: string | undefined): string {
@@ -61,47 +50,7 @@ function formatDateValue(value: string | undefined): string {
     return 'Non renseignee';
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
-}
-
-function normalizeApiBaseUrl(baseUrl: string | undefined): string {
-  if (!baseUrl) {
-    return '';
-  }
-
-  return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-}
-
-function resolvePhotoUri(photoUrl: string): string {
-  if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
-    return photoUrl;
-  }
-
-  const normalizedBaseUrl = normalizeApiBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL);
-  if (!normalizedBaseUrl) {
-    return photoUrl;
-  }
-
-  const normalizedPath = photoUrl.startsWith('/') ? photoUrl : `/${photoUrl}`;
-  return `${normalizedBaseUrl}${normalizedPath}`;
-}
-
-function shouldQueueActionAfterError(error: unknown): boolean {
-  return !(error instanceof ApiClientError && error.status >= 400 && error.status < 500);
-}
-
-function buildStockFormRoute(stockItemId: string): Href {
-  const encodedStockItemId = encodeURIComponent(stockItemId);
-  return `${STOCK_FORM_PATH}?stockItemId=${encodedStockItemId}` as Href;
+  return formatDate(value) ?? value;
 }
 
 function updateQuantityInResponse<T extends { data: StockItemResponse[] }>(
@@ -187,23 +136,20 @@ function applyOptimisticRemoval(queryClient: QueryClient, stockItemId: string): 
   );
 }
 
-
 export default function StockItemDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
 
   const { stockItemId: stockItemIdParam } =
     useLocalSearchParams<{ stockItemId?: string | string[] }>();
-  const stockItemId = useMemo(() => getFirstRouteParamValue(stockItemIdParam), [stockItemIdParam]);
+  const stockItemId = useMemo(() => getFirstRouteParam(stockItemIdParam), [stockItemIdParam]);
 
   const [quantityDraft, setQuantityDraft] = useState('');
   const [quantityFieldError, setQuantityFieldError] = useState<string | null>(null);
   const [isQuantityDialogVisible, setIsQuantityDialogVisible] = useState(false);
   const [isConsumeDialogVisible, setIsConsumeDialogVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const stockItemsQuery = useListStockItems();
   const {
@@ -242,7 +188,7 @@ export default function StockItemDetailScreen() {
   const categoryLabel = stockItem?.product?.category?.name ?? 'Sans categorie';
 
   const photoUrl = (stockItem?.product as StockProductWithPhotoUrl | undefined)?.photoUrl;
-  const photoUri = photoUrl ? resolvePhotoUri(photoUrl) : null;
+  const photoUri = photoUrl ? resolveApiAssetUri(photoUrl) : null;
 
   const enqueueAction = useCallback(
     async (action: EnqueuePendingStockItemActionInput, message: string) => {
@@ -338,7 +284,7 @@ export default function StockItemDetailScreen() {
       return;
     }
 
-    const parsedQuantity = Number.parseFloat(quantityDraft.replace(',', '.'));
+    const parsedQuantity = parseDecimalInput(quantityDraft);
     if (!Number.isFinite(parsedQuantity) || parsedQuantity < 0) {
       setQuantityFieldError('Renseigne une quantite valide (>= 0).');
       return;
@@ -369,7 +315,7 @@ export default function StockItemDetailScreen() {
       await invalidateStockQueries(queryClient);
       setSnackbarMessage('Quantite mise a jour.');
     } catch (error) {
-      if (shouldQueueActionAfterError(error)) {
+      if (shouldQueueAfterError(error)) {
         await enqueueAction(
           pendingAction,
           'Reseau instable: mise a jour enregistree hors ligne et en attente de synchronisation.'
@@ -404,7 +350,7 @@ export default function StockItemDetailScreen() {
       await addToShoppingListMutation.mutateAsync({ id: stockItemId });
       setSnackbarMessage('Produit ajoute a la liste de courses.');
     } catch (error) {
-      if (shouldQueueActionAfterError(error)) {
+      if (shouldQueueAfterError(error)) {
         await enqueueAction(
           pendingAction,
           'Reseau instable: ajout aux courses place en file hors ligne.'
@@ -443,7 +389,7 @@ export default function StockItemDetailScreen() {
       await invalidateStockQueries(queryClient);
       router.replace(STOCK_ROUTE);
     } catch (error) {
-      if (shouldQueueActionAfterError(error)) {
+      if (shouldQueueAfterError(error)) {
         await enqueueAction(
           pendingAction,
           'Reseau instable: suppression enregistree hors ligne puis synchronisee plus tard.'

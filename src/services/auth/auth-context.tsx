@@ -8,6 +8,9 @@ import {
   type ReactNode,
 } from 'react';
 
+import { queryClient } from '@/services/api/query-client';
+
+import { onUnauthorized } from './auth-events';
 import { clearTokens, getAccessToken, getRefreshToken, setTokens, type AuthTokens } from './token-storage';
 
 interface AuthContextValue {
@@ -54,7 +57,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearTokens();
     setAccessToken(null);
     setRefreshToken(null);
+    // Évite d'afficher les données de l'ancienne session (stock, etc.)
+    // après une déconnexion ou une invalidation de session.
+    queryClient.clear();
   }, []);
+
+  // Si une requête API renvoie 401 (token invalide/expiré), on efface la
+  // session locale : isAuthenticated passe à false et les layouts (tabs)
+  // redirigent alors automatiquement vers l'écran de connexion.
+  useEffect(() => {
+    const unsubscribe = onUnauthorized(() => {
+      clearSession();
+    });
+
+    return unsubscribe;
+  }, [clearSession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

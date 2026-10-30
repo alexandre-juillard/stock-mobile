@@ -1,7 +1,7 @@
 import { PropsWithChildren } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 
 interface ScreenShellProps extends PropsWithChildren {
   title: string;
@@ -9,11 +9,15 @@ interface ScreenShellProps extends PropsWithChildren {
 }
 
 export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
+  const theme = useTheme();
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
-        <Text variant="headlineMedium">{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
+          {title}
+        </Text>
+        {subtitle ? <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>{subtitle}</Text> : null}
         {children}
       </View>
     </SafeAreaView>
@@ -30,8 +34,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 12,
   },
+  title: {
+    fontWeight: '700',
+  },
   subtitle: {
-    opacity: 0.8,
+    opacity: 1,
   },
 });
 

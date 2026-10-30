@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -7,6 +6,7 @@ import { Platform, RefreshControl, ScrollView, StyleSheet, View } from 'react-na
 import { Button, Card, HelperText, Snackbar, Switch, Text, TextInput } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { registerToken, unregisterToken } from '@/services/api/generated/notifications-push/notifications-push';
 import {
   updateSettings,
@@ -21,6 +21,7 @@ import {
   getLatestPendingExpirationAlertDays,
   getPendingNotificationSettingsMutationsCount,
 } from '@/services/offline/notification-settings-queue';
+import { shouldQueueAfterError } from '@/services/offline/offline-queue';
 import {
   enqueuePendingPushTokenAction,
   flushPendingPushTokenActions,
@@ -55,10 +56,6 @@ async function getExpoNotificationsModule(): Promise<ExpoNotificationsModule> {
     notificationsModulePromise = null;
     throw new Error(EXPO_GO_ANDROID_PUSH_MESSAGE);
   }
-}
-
-function shouldQueueAfterError(error: unknown): boolean {
-  return !(error instanceof ApiClientError && error.status >= 400 && error.status < 500);
 }
 
 function resolvePushPlatform(): RegisterPushTokenRequestPlatform | null {
@@ -142,9 +139,8 @@ async function requestDevicePushToken(): Promise<string> {
 
 export default function NotificationSettingsScreen() {
   const queryClient = useQueryClient();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
 
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
   const isNativePushPlatform = Platform.OS === 'android' || Platform.OS === 'ios';
   const isExpoGoAndroid =
     Platform.OS === 'android' && Constants.executionEnvironment === 'storeClient';

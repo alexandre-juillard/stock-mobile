@@ -1,13 +1,14 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { Card, Chip, FAB, Searchbar, Text } from 'react-native-paper';
 
 import { RecipeFeasibilityBadge, type RecipeFeasibilityStatus } from '@/components/ui/recipe-feasibility-badge';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { buildRecipeDetailRoute, RECIPE_FORM_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import type {
   RecipeDetailResponse,
   RecipeIngredientResponse,
@@ -17,8 +18,7 @@ import type {
 import { getRecipe, useListRecipes } from '@/services/api/generated/recettes/recettes';
 import { useListStockItems } from '@/services/api/generated/stock/stock';
 import { mapErrorToUi } from '@/utils/error-mapper';
-
-const RECIPE_FORM_ROUTE = '/(tabs)/recipes/form' as Href;
+import { formatDate, normalizeQuantity } from '@/utils/format';
 
 type FeasibilityFilter = 'all' | 'ready' | 'missing';
 
@@ -32,33 +32,8 @@ interface RecipeListItem {
   feasibility: RecipeFeasibilityInfo;
 }
 
-function buildRecipeDetailRoute(recipeId: string): Href {
-  return `/(tabs)/recipes/${recipeId}` as Href;
-}
-
-function normalizeQuantity(value: number | undefined): number {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return 0;
-  }
-
-  return value;
-}
-
 function formatCreatedAtLabel(value: string | undefined): string {
-  if (!value) {
-    return 'Date de creation indisponible';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 'Date de creation indisponible';
-  }
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
+  return (value ? formatDate(value) : null) ?? 'Date de creation indisponible';
 }
 
 function isIngredientSatisfied(
@@ -119,12 +94,10 @@ function computeRecipeFeasibility(
 
 export default function RecipesListScreen() {
   const router = useRouter();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [feasibilityFilter, setFeasibilityFilter] = useState<FeasibilityFilter>('all');
-
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const recipesQuery = useListRecipes();
   const stockItemsQuery = useListStockItems();

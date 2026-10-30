@@ -1,28 +1,28 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, Snackbar, Text } from 'react-native-paper';
 
+import { PasswordTextField } from '@/components/ui/password-text-field';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { LOGIN_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { resetPasswordWithToken } from '@/services/auth/auth-api';
 import { mapErrorToUi } from '@/utils/error-mapper';
+import { getFirstRouteParam } from '@/utils/route-params';
 import { resetPasswordSchema, type ResetPasswordFormValues } from '@/utils/validation';
-
-const LOGIN_ROUTE = '/(auth)/login' as Href;
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ token?: string | string[] }>();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
-  const token = Array.isArray(params.token) ? (params.token[0] ?? '') : (params.token ?? '');
+  const token = getFirstRouteParam(params.token) ?? '';
   const hasValidToken = token.trim().length > 0;
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const { control, handleSubmit, formState } = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
@@ -80,12 +80,9 @@ export default function ResetPasswordScreen() {
         control={control}
         name="newPassword"
         render={({ field: { value, onBlur, onChange } }) => (
-          <TextInput
-            mode="outlined"
+          <PasswordTextField
             label="Nouveau mot de passe"
-            secureTextEntry
             autoCapitalize="none"
-            autoComplete="password"
             value={value}
             onBlur={onBlur}
             onChangeText={onChange}
@@ -101,12 +98,9 @@ export default function ResetPasswordScreen() {
         control={control}
         name="confirmPassword"
         render={({ field: { value, onBlur, onChange } }) => (
-          <TextInput
-            mode="outlined"
+          <PasswordTextField
             label="Confirmer le mot de passe"
-            secureTextEntry
             autoCapitalize="none"
-            autoComplete="password"
             value={value}
             onBlur={onBlur}
             onChangeText={onChange}
@@ -120,7 +114,7 @@ export default function ResetPasswordScreen() {
 
       <Button
         mode="contained"
-        onPress={onSubmit}
+        onPress={() => void onSubmit()}
         loading={resetPasswordMutation.isPending}
         disabled={resetPasswordMutation.isPending || !hasValidToken}>
         Valider
@@ -142,6 +136,7 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   links: {
     marginTop: 8,
+    alignItems: 'center',
   },
   link: {
     color: '#2D6A4F',
@@ -150,4 +145,3 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
-

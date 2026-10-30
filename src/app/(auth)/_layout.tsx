@@ -1,19 +1,14 @@
-import { Redirect, Stack, type Href } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { Redirect, Stack } from 'expo-router';
 
+import { FullScreenLoader } from '@/components/ui/full-screen-loader';
+import { STOCK_ROUTE } from '@/constants/routes';
 import { useAuth } from '@/services/auth/auth-context';
-
-const STOCK_ROUTE = '/(tabs)/stock' as Href;
 
 export default function AuthLayout() {
   const { isAuthenticated, isBootstrapping } = useAuth();
 
   if (isBootstrapping) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <FullScreenLoader />;
   }
 
   if (isAuthenticated) {

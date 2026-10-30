@@ -20,9 +20,8 @@ import type {
   ResendConfirmationRequest,
   UserResponse,
 } from '@/services/api/generated/model';
-import { apiFetch } from '@/services/api/http-client';
+import { apiFetch, getApiBaseUrl } from '@/services/api/http-client';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 const OAUTH_REDIRECT_URI = process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI ?? 'stockshop://oauth2/callback';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -48,14 +47,6 @@ function unwrapData<T>(value: T | { data?: T }): T {
   return value as T;
 }
 
-function ensureApiBaseUrl(): string {
-  if (!API_BASE_URL) {
-    throw new Error('EXPO_PUBLIC_API_BASE_URL is missing');
-  }
-
-  return API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
-}
-
 function isLinkRequiredResponse(value: unknown): value is LinkRequiredResponse {
   if (typeof value !== 'object' || value === null) {
     return false;
@@ -79,7 +70,7 @@ function isUserResponse(value: unknown): value is UserResponse {
 }
 
 function buildOAuthGoogleUrl(): string {
-  return `${ensureApiBaseUrl()}/api/auth/oauth2/google`;
+  return `${getApiBaseUrl()}/api/auth/oauth2/google`;
 }
 
 async function exchangeOAuthCode(code: string): Promise<OAuthExchangeResult> {
