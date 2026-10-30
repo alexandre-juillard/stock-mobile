@@ -1,6 +1,5 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { StyleSheet, View } from 'react-native';
-import { Text } from 'react-native-paper';
+import { StatusBadge, type IconName } from '@/components/ui/status-badge';
+import type { StatusTone } from '@/constants/colors';
 
 export type RecipeFeasibilityStatus = 'ready' | 'missing' | 'unknown';
 
@@ -9,64 +8,28 @@ interface RecipeFeasibilityBadgeProps {
   missingCount?: number;
 }
 
-interface FeasibilityVisual {
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  backgroundColor: string;
-  textColor: string;
-  getLabel: (missingCount?: number) => string;
-}
-
-const FEASIBILITY_VISUALS: Record<RecipeFeasibilityStatus, FeasibilityVisual> = {
-  ready: {
-    icon: 'check-circle-outline',
-    backgroundColor: '#D8F3DC',
-    textColor: '#081C15',
-    getLabel: () => 'Realisable',
-  },
-  missing: {
-    icon: 'alert-outline',
-    backgroundColor: '#E9C46A',
-    textColor: '#081C15',
-    getLabel: (missingCount) =>
-      missingCount && missingCount > 1
-        ? `${missingCount} ingredients manquants`
-        : missingCount === 1
-          ? '1 ingredient manquant'
-          : 'Ingredients manquants',
-  },
-  unknown: {
-    icon: 'help-circle-outline',
-    backgroundColor: '#D8DBE2',
-    textColor: '#1F2933',
-    getLabel: () => 'Statut indisponible',
-  },
+const FEASIBILITY_VISUALS: Record<RecipeFeasibilityStatus, { icon: IconName; tone: StatusTone }> = {
+  ready: { icon: 'check-circle-outline', tone: 'success' },
+  missing: { icon: 'alert-outline', tone: 'warning' },
+  unknown: { icon: 'help-circle-outline', tone: 'neutral' },
 };
 
-export function RecipeFeasibilityBadge({ status, missingCount }: RecipeFeasibilityBadgeProps) {
-  const visual = FEASIBILITY_VISUALS[status];
+function getFeasibilityLabel(status: RecipeFeasibilityStatus, missingCount?: number): string {
+  if (status === 'ready') {
+    return 'Realisable';
+  }
 
-  return (
-    <View style={[styles.container, { backgroundColor: visual.backgroundColor }]}>
-      <MaterialCommunityIcons name={visual.icon} size={14} color={visual.textColor} />
-      <Text style={[styles.label, { color: visual.textColor }]}>{visual.getLabel(missingCount)}</Text>
-    </View>
-  );
+  if (status === 'unknown') {
+    return 'Statut indisponible';
+  }
+
+  if (missingCount && missingCount > 1) {
+    return `${missingCount} ingredients manquants`;
+  }
+
+  return missingCount === 1 ? '1 ingredient manquant' : 'Ingredients manquants';
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  label: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '500',
-  },
-});
-
+export function RecipeFeasibilityBadge({ status, missingCount }: RecipeFeasibilityBadgeProps) {
+  return <StatusBadge {...FEASIBILITY_VISUALS[status]} label={getFeasibilityLabel(status, missingCount)} />;
+}

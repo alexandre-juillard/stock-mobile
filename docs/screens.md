@@ -82,22 +82,29 @@ libellé texte — jamais de la couleur seule (daltonisme rouge/vert, ~8% des ho
 
 ## Thème couleur — Dark Mode
 
-Statut : **validé comme point de départ**, ajustable ensuite à l'usage.
+Statut : **validé**, mis en conformité WCAG 2.2 AA (contrastes vérifiés par `npm run check:contrast`).
 
 Principe : ne pas inverser les couleurs telles quelles (une couleur saturée "vibre" sur fond noir et
 fatigue l'œil) — on éclaircit les tons qui doivent porter du texte/contraste, on garde les fonds sur
 un noir légèrement teinté plutôt qu'un noir pur.
 
+Le thème affiché suit le choix « Clair / Sombre » du profil quand l'utilisateur est connecté, sinon
+le réglage du système. Source de vérité du code : `src/constants/colors.ts`.
+
 | Rôle | Light | Dark |
 |---|---|---|
-| Primaire | `#2D6A4F` | `#40916C` *(nuance intermédiaire de la même famille de verts — distincte du succès pour éviter toute confusion)* |
-| Secondaire | `#F4A261` | `#F4A261` *(déjà assez clair, inchangé)* |
-| Avertissement | `#E9C46A` | `#E9C46A` *(inchangé)* |
-| Alerte | `#D90429` | `#D90429` *(inchangé — utilisé en fond de badge, pas en texte-sur-fond)* |
-| Succès | `#52B788` | `#52B788` *(inchangé)* |
+| Primaire (boutons, liens, onglet actif) | `#2D6A4F` | `#7CC9A1` *(le `#40916C` initial n'atteignait que 4,3:1 sur les cartes sombres)* |
+| Secondaire | `#F4A261` | `#F4A261` *(fond uniquement, texte `#081C15` posé dessus)* |
+| Avertissement | `#E9C46A` | `#E9C46A` *(fond de badge ; texte/icône sur fond clair : `#755600`)* |
+| Alerte (fond de badge) | `#D90429` | `#D90429` *(texte blanc posé dessus)* |
+| Alerte (texte d'erreur, boutons de suppression) | `#C1121F` | `#FFB4AB` |
+| Succès (texte/icône) | `#1E6B45` | `#7FD4A6` *(le `#52B788` initial n'atteignait que 2,5:1 sur blanc)* |
 | Fond | `#F8F9FA` | `#121714` |
 | Surface (cartes) | `#FFFFFF` | `#1B211D` |
 | Texte principal | `#081C15` | `#E8ECEA` |
+| Texte secondaire | `#3F4A44` | `#BFC9C2` |
+| Bordure de champ (3:1 minimum) | `#6B7570` | `#89938C` |
+| Bordure décorative (cartes) | `#D8DBE2` | `#3E4A44` |
 
 ## Typographie
 

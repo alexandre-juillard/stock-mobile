@@ -1,7 +1,6 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import {
   Button,
   Card,
@@ -15,7 +14,13 @@ import {
   TextInput,
 } from 'react-native-paper';
 
+import { DangerButton } from '@/components/ui/danger-button';
+import { MutedText } from '@/components/ui/muted-text';
+import { PendingSyncCard } from '@/components/ui/pending-sync-card';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { StateMessage } from '@/components/ui/state-message';
+import { radius, spacing } from '@/constants/theme';
+import { makeStyles } from '@/hooks/use-app-theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import {
   addShoppingListItem,
@@ -48,7 +53,8 @@ import { mapErrorToUi } from '@/utils/error-mapper';
 import { formatNumber, normalizeQuantity, parseDecimalInput } from '@/utils/format';
 
 const TEMP_ITEM_ID_PREFIX = 'offline-shopping-item-';
-const DANGER_COLOR = '#D90429';
+// Couleur de donn?e (pastille des articles sans cat?gorie), pas une couleur de th?me.
+const UNCATEGORIZED_COLOR = '#D8DBE2';
 
 interface AddItemDialogState {
   productId: string;
@@ -137,7 +143,7 @@ function applyOptimisticAdd(
 ): void {
   const nextItem = createOptimisticItem(product);
   const categoryName = product.category?.name ?? 'Sans categorie';
-  const categoryColor = product.category?.color ?? '#D8DBE2';
+  const categoryColor = product.category?.color ?? UNCATEGORIZED_COLOR;
 
   queryClient.setQueriesData<ListShoppingListQueryResult>(
     { queryKey: queryKeys.shoppingList.list },
@@ -276,6 +282,7 @@ function applyOptimisticFinish(queryClient: QueryClient): void {
 export default function ShoppingListScreen() {
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
+  const styles = useStyles();
 
   const [addItemDialog, setAddItemDialog] = useState<AddItemDialogState | null>(null);
   const [checkItemDialog, setCheckItemDialog] = useState<CheckItemDialogState | null>(null);
@@ -841,7 +848,7 @@ export default function ShoppingListScreen() {
   const renderShoppingListGroup = useCallback(
     ({ item }: { item: ShoppingListCategoryGroupResponse }) => {
       const categoryName = item.category?.name ?? 'Sans categorie';
-      const categoryColor = item.category?.color ?? '#D8DBE2';
+      const categoryColor = item.category?.color ?? UNCATEGORIZED_COLOR;
       const groupItems = item.items ?? [];
 
       return (
@@ -892,10 +899,10 @@ export default function ShoppingListScreen() {
                     </View>
 
                     {shoppingItem.isChecked ? (
-                      <Text style={styles.checkedDetailsText}>
+                      <MutedText>
                         Achat: {formatNumber(normalizeQuantity(shoppingItem.checkedQuantity))}{' '}
                         {shoppingItem.checkedUnit?.label ?? shoppingItem.checkedUnit?.code ?? ''}
-                      </Text>
+                      </MutedText>
                     ) : null}
                   </View>
 
@@ -918,14 +925,12 @@ export default function ShoppingListScreen() {
                       </Button>
                     )}
 
-                    <Button
-                      mode="text"
+                    <DangerButton
                       icon="delete-outline"
-                      textColor={DANGER_COLOR}
                       onPress={() => void handleDeleteItem(shoppingItem)}
                       disabled={isBusy || optimistic}>
                       Supprimer
-                    </Button>
+                    </DangerButton>
                   </View>
                 </View>
               );
@@ -934,7 +939,7 @@ export default function ShoppingListScreen() {
         </Card>
       );
     },
-    [handleDeleteItem, handleOpenCheckDialog, handleUncheckItem, isBusy]
+    [handleDeleteItem, handleOpenCheckDialog, handleUncheckItem, isBusy, styles]
   );
 
   const isInitialLoading = shoppingListQuery.isLoading;
@@ -945,26 +950,16 @@ export default function ShoppingListScreen() {
     <ScreenShell
       title="Liste de courses"
       subtitle="Coche tes achats et finalise pour mettre a jour ton stock automatiquement.">
-      {isOffline ? (
-        <Text style={styles.offlineText}>Tu es hors ligne: tes actions seront synchronisees plus tard.</Text>
-      ) : null}
+      {isOffline ? <MutedText>Tu es hors ligne: tes actions seront synchronisees plus tard.</MutedText> : null}
 
       {pendingActionsCount > 0 ? (
-        <Card mode="outlined" style={styles.pendingCard}>
-          <Card.Content style={styles.pendingCardContent}>
-            <Text>{pendingActionsCount} action(s) en attente de synchronisation.</Text>
-            {!isOffline ? (
-              <Button
-                mode="outlined"
-                icon="sync"
-                onPress={() => void handleSyncQueue()}
-                loading={isSyncingQueue}
-                disabled={isBusy}>
-                Synchroniser
-              </Button>
-            ) : null}
-          </Card.Content>
-        </Card>
+        <PendingSyncCard
+          messages={[`${pendingActionsCount} action(s) en attente de synchronisation.`]}
+          canSync={!isOffline}
+          onSync={() => void handleSyncQueue()}
+          isSyncing={isSyncingQueue}
+          disabled={isBusy}
+        />
       ) : null}
 
       <Card mode="outlined" style={styles.summaryCard}>
@@ -1003,31 +998,23 @@ export default function ShoppingListScreen() {
       </View>
 
       {productsQuery.isError ? (
-        <Text style={styles.warningText}>
-          Le chargement des produits a echoue: l ajout manuel peut etre limite.
-        </Text>
+        <MutedText>Le chargement des produits a echoue: l ajout manuel peut etre limite.</MutedText>
       ) : null}
 
       {isInitialLoading ? (
-        <View style={styles.centeredState}>
-          <Text>Chargement de ta liste de courses...</Text>
-        </View>
+        <StateMessage message="Chargement de ta liste de courses..." />
       ) : hasLoadError ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color={DANGER_COLOR} />
-          <Text style={styles.errorText}>{mapErrorToUi(shoppingListQuery.error).message}</Text>
+        <StateMessage tone="error" icon="alert-circle-outline" message={mapErrorToUi(shoppingListQuery.error).message}>
           <Button mode="outlined" onPress={() => void handleRefresh()}>
             Reessayer
           </Button>
-        </View>
+        </StateMessage>
       ) : shoppingGroups.length === 0 ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="cart-off" size={32} color="#60646C" />
-          <Text style={styles.emptyText}>Ta liste de courses est vide.</Text>
+        <StateMessage icon="cart-off" message="Ta liste de courses est vide.">
           <Button mode="contained" onPress={handleOpenAddItemDialog} disabled={isBusy}>
             Ajouter un article
           </Button>
-        </View>
+        </StateMessage>
       ) : (
         <FlatList
           data={shoppingGroups}
@@ -1072,7 +1059,7 @@ export default function ShoppingListScreen() {
 
             <View style={styles.optionsWrap}>
               {addDialogAvailableProducts.length === 0 ? (
-                <Text style={styles.hintText}>Aucun produit disponible pour cet ajout.</Text>
+                <MutedText>Aucun produit disponible pour cet ajout.</MutedText>
               ) : (
                 addDialogAvailableProducts.map((product) => {
                   if (!product.id) {
@@ -1149,9 +1136,11 @@ export default function ShoppingListScreen() {
 
             <Text variant="labelLarge">Unite</Text>
             {checkDialogUnitsQuery.isLoading ? (
-              <Text style={styles.hintText}>Chargement des unites...</Text>
+              <MutedText>Chargement des unites...</MutedText>
             ) : checkDialogUnitsQuery.isError ? (
-              <Text style={styles.errorText}>Impossible de charger les unites.</Text>
+              <HelperText type="error" visible>
+                Impossible de charger les unites.
+              </HelperText>
             ) : (
               <View style={styles.optionsWrap}>
                 {checkDialogUnitOptions.map((unitOption) => {
@@ -1202,9 +1191,7 @@ export default function ShoppingListScreen() {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setIsClearDialogVisible(false)}>Annuler</Button>
-            <Button textColor={DANGER_COLOR} onPress={() => void handleConfirmClearList()}>
-              Vider
-            </Button>
+            <DangerButton onPress={() => void handleConfirmClearList()}>Vider</DangerButton>
           </Dialog.Actions>
         </Dialog>
 
@@ -1229,110 +1216,80 @@ export default function ShoppingListScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  offlineText: {
-    opacity: 0.85,
-  },
-  pendingCard: {
-    borderRadius: 14,
-    elevation: 0,
-  },
-  pendingCardContent: {
-    gap: 8,
-  },
+const useStyles = makeStyles(({ colors }) => ({
   summaryCard: {
-    borderRadius: 14,
-    elevation: 0,
+    borderRadius: radius.card,
+    borderColor: colors.outlineVariant,
   },
   summaryContent: {
-    gap: 4,
+    gap: spacing.xs,
   },
   actionsRow: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  warningText: {
-    opacity: 0.85,
-  },
-  centeredState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  errorText: {
-    color: DANGER_COLOR,
-    textAlign: 'center',
-  },
-  emptyText: {
-    opacity: 0.8,
-    textAlign: 'center',
+    gap: spacing.sm,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    gap: 8,
+    gap: spacing.sm,
     paddingBottom: 96,
   },
   groupCard: {
-    borderRadius: 16,
-    elevation: 0,
+    borderRadius: radius.card,
+    borderColor: colors.outlineVariant,
   },
   groupCardContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
+  // La bordure garde la pastille visible quelle que soit la couleur de cat?gorie.
   categoryDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.outline,
   },
   shoppingItemRow: {
     borderWidth: 1,
-    borderColor: '#D8DBE2',
-    borderRadius: 12,
-    padding: 10,
-    gap: 8,
+    borderColor: colors.outlineVariant,
+    borderRadius: radius.input,
+    padding: spacing.sm + 2,
+    gap: spacing.sm,
   },
   shoppingItemRowChecked: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.primaryContainer,
+    borderColor: colors.primary,
   },
   shoppingItemMain: {
-    gap: 6,
+    gap: spacing.xs + 2,
   },
   shoppingItemMetaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-  },
-  checkedDetailsText: {
-    opacity: 0.85,
+    gap: spacing.xs + 2,
   },
   shoppingItemActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.sm,
   },
   dialogContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-  },
-  hintText: {
-    opacity: 0.8,
+    gap: spacing.sm,
   },
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: spacing.lg,
+    bottom: spacing.lg,
   },
-});
-
+}));

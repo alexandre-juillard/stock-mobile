@@ -1,14 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, Snackbar, Text } from 'react-native-paper';
+import { Button, HelperText, Snackbar } from 'react-native-paper';
 
 import { FormTextField } from '@/components/ui/form-text-field';
+import { MutedText } from '@/components/ui/muted-text';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { TextLink } from '@/components/ui/text-link';
 import { LOGIN_ROUTE } from '@/constants/routes';
+import { spacing } from '@/constants/theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { forgotPasswordWithEmail } from '@/services/auth/auth-api';
 import {
@@ -118,9 +121,9 @@ export default function ForgotPasswordScreen() {
       </HelperText>
 
       {isOffline ? (
-        <Text style={styles.offlineText}>
+        <MutedText>
           Tu es hors ligne. La demande sera envoyee automatiquement quand la connexion revient.
-        </Text>
+        </MutedText>
       ) : null}
 
       <Button mode="contained" onPress={() => void onSubmit()} loading={forgotPasswordMutation.isPending}>
@@ -128,9 +131,7 @@ export default function ForgotPasswordScreen() {
       </Button>
 
       <View style={styles.links}>
-        <Link href={LOGIN_ROUTE} style={styles.link}>
-          Retour a la connexion
-        </Link>
+        <TextLink href={LOGIN_ROUTE}>Retour a la connexion</TextLink>
       </View>
 
       <Snackbar visible={Boolean(snackbarMessage)} onDismiss={() => setSnackbarMessage(null)} duration={4000}>
@@ -142,12 +143,7 @@ export default function ForgotPasswordScreen() {
 
 const styles = StyleSheet.create({
   links: {
-    marginTop: 8,
-  },
-  link: {
-    color: '#2D6A4F',
-  },
-  offlineText: {
-    opacity: 0.8,
+    marginTop: spacing.sm,
+    alignItems: 'center',
   },
 });

@@ -1,17 +1,20 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { Button, Card, Chip, FAB, Searchbar, Text } from 'react-native-paper';
 
+import { MutedText } from '@/components/ui/muted-text';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { StateMessage } from '@/components/ui/state-message';
 import { StockStatusBadge } from '@/components/ui/stock-status-badge';
 import { buildStockItemRoute, CATEGORIES_ROUTE, STOCK_FORM_ROUTE } from '@/constants/routes';
+import { radius, spacing } from '@/constants/theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { useGetCategories } from '@/services/api/generated/catégories/catégories';
 import type { CategoryResponse, StockItemResponse } from '@/services/api/generated/model';
 import { getListStockItemsQueryOptions } from '@/services/api/generated/stock/stock';
+import { getReadableTextColor } from '@/utils/color-contrast';
 import { mapErrorToUi } from '@/utils/error-mapper';
 
 export default function StockListScreen() {
@@ -69,13 +72,15 @@ export default function StockListScreen() {
       }
 
       const isSelected = selectedCategoryIds.includes(category.id);
+      const hasCustomColor = isSelected && Boolean(category.color);
 
       return (
         <Chip
           key={category.id}
           selected={isSelected}
           onPress={() => toggleCategory(category.id!)}
-          style={[styles.categoryChip, isSelected && category.color ? { backgroundColor: category.color } : null]}
+          style={[styles.categoryChip, hasCustomColor ? { backgroundColor: category.color } : null]}
+          selectedColor={hasCustomColor ? getReadableTextColor(category.color!) : undefined}
           mode={isSelected ? 'flat' : 'outlined'}>
           {category.name}
         </Chip>
@@ -99,13 +104,11 @@ export default function StockListScreen() {
               </Text>
               {item.status ? <StockStatusBadge status={item.status} /> : null}
             </View>
-            <Text variant="bodyMedium" style={styles.itemQuantity}>
+            <MutedText variant="bodyMedium">
               {item.quantity ?? 0} {item.product?.baseUnit?.label ?? item.product?.baseUnit?.code ?? ''}
-            </Text>
+            </MutedText>
             {item.product?.category?.name ? (
-              <Text variant="labelSmall" style={styles.itemCategory}>
-                {item.product.category.name}
-              </Text>
+              <MutedText variant="labelSmall">{item.product.category.name}</MutedText>
             ) : null}
           </Card.Content>
         </Card>
@@ -119,11 +122,7 @@ export default function StockListScreen() {
 
   return (
     <ScreenShell title="Mon stock">
-      {isOffline ? (
-        <Text style={styles.offlineText}>
-          Tu es hors ligne : dernières données synchronisées affichées.
-        </Text>
-      ) : null}
+      {isOffline ? <MutedText>Tu es hors ligne : dernières données synchronisées affichées.</MutedText> : null}
 
       <Searchbar
         placeholder="Rechercher un produit"
@@ -161,25 +160,22 @@ export default function StockListScreen() {
       </Button>
 
       {isInitialLoading ? (
-        <View style={styles.centered}>
-          <Text>Chargement de ton stock...</Text>
-        </View>
+        <StateMessage message="Chargement de ton stock..." />
       ) : hasLoadError ? (
-        <View style={styles.centered}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#D90429" />
-          <Text style={styles.errorText}>
-            {mapErrorToUi(stockItemsQuery.error ?? categoriesQuery.error).message}
-          </Text>
-        </View>
+        <StateMessage
+          tone="error"
+          icon="alert-circle-outline"
+          message={mapErrorToUi(stockItemsQuery.error ?? categoriesQuery.error).message}
+        />
       ) : filteredStockItems.length === 0 ? (
-        <View style={styles.centered}>
-          <MaterialCommunityIcons name="fridge-outline" size={32} color="#60646C" />
-          <Text style={styles.emptyText}>
-            {stockItems.length === 0
+        <StateMessage
+          icon="fridge-outline"
+          message={
+            stockItems.length === 0
               ? 'Ton garde-manger est vide pour le moment.'
-              : "Aucun produit ne correspond à ta recherche."}
-          </Text>
-        </View>
+              : 'Aucun produit ne correspond à ta recherche.'
+          }
+        />
       ) : (
         <FlatList
           data={filteredStockItems}
@@ -202,68 +198,44 @@ export default function StockListScreen() {
 }
 
 const styles = StyleSheet.create({
-  offlineText: {
-    opacity: 0.8,
-  },
   searchbar: {
     elevation: 0,
   },
   categoryList: {
-    gap: 8,
-    paddingVertical: 4,
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   categoryChip: {
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   manageCategoriesButton: {
     alignSelf: 'flex-start',
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  errorText: {
-    textAlign: 'center',
-    color: '#D90429',
-  },
-  emptyText: {
-    textAlign: 'center',
-    opacity: 0.8,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    gap: 8,
+    gap: spacing.sm,
     paddingBottom: 96,
   },
   itemCard: {
-    elevation: 1,
+    borderRadius: radius.card,
   },
   itemContent: {
-    gap: 4,
+    gap: spacing.xs,
   },
   itemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.sm,
   },
   itemName: {
     flexShrink: 1,
   },
-  itemQuantity: {
-    opacity: 0.8,
-  },
-  itemCategory: {
-    opacity: 0.6,
-  },
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: spacing.lg,
+    bottom: spacing.lg,
   },
 });
-

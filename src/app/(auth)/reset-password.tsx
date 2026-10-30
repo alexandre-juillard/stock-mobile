@@ -1,14 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 import { Button, HelperText, Snackbar, Text } from 'react-native-paper';
 
+import { MutedText } from '@/components/ui/muted-text';
 import { PasswordTextField } from '@/components/ui/password-text-field';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { TextLink } from '@/components/ui/text-link';
 import { LOGIN_ROUTE } from '@/constants/routes';
+import { spacing } from '@/constants/theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { resetPasswordWithToken } from '@/services/auth/auth-api';
 import { mapErrorToUi } from '@/utils/error-mapper';
@@ -71,9 +74,9 @@ export default function ResetPasswordScreen() {
       ) : null}
 
       {isOffline ? (
-        <Text style={styles.offlineText}>
+        <MutedText>
           Tu es hors ligne. Cette etape doit etre effectuee en ligne car le token expire rapidement.
-        </Text>
+        </MutedText>
       ) : null}
 
       <Controller
@@ -121,9 +124,7 @@ export default function ResetPasswordScreen() {
       </Button>
 
       <View style={styles.links}>
-        <Link href={LOGIN_ROUTE} style={styles.link}>
-          Retour a la connexion
-        </Link>
+        <TextLink href={LOGIN_ROUTE}>Retour a la connexion</TextLink>
       </View>
 
       <Snackbar visible={Boolean(snackbarMessage)} onDismiss={() => setSnackbarMessage(null)} duration={4000}>
@@ -135,13 +136,7 @@ export default function ResetPasswordScreen() {
 
 const styles = StyleSheet.create({
   links: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     alignItems: 'center',
-  },
-  link: {
-    color: '#2D6A4F',
-  },
-  offlineText: {
-    opacity: 0.8,
   },
 });

@@ -1,7 +1,10 @@
-import { PropsWithChildren } from 'react';
-import { StyleSheet, View } from 'react-native';
+import type { PropsWithChildren } from 'react';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Text, useTheme } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+
+import { spacing } from '@/constants/theme';
+import { makeStyles } from '@/hooks/use-app-theme';
 
 interface ScreenShellProps extends PropsWithChildren {
   title: string;
@@ -9,36 +12,37 @@ interface ScreenShellProps extends PropsWithChildren {
 }
 
 export function ScreenShell({ title, subtitle, children }: ScreenShellProps) {
-  const theme = useTheme();
+  const styles = useStyles();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.container}>
-        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onBackground }]}>
+        <Text variant="headlineMedium" style={styles.title} accessibilityRole="header">
           {title}
         </Text>
-        {subtitle ? <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>{subtitle}</Text> : null}
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         {children}
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   safeArea: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 12,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
   },
   title: {
+    color: colors.onBackground,
     fontWeight: '700',
   },
   subtitle: {
-    opacity: 1,
+    color: colors.onSurfaceVariant,
   },
-});
-
+}));

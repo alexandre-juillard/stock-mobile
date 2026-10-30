@@ -58,6 +58,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
+    "check:contrast": "node --experimental-strip-types --no-warnings scripts/check-contrast.mjs",
     "api:generate": "orval --config ./orval.config.ts",
     "commit": "cz",
     "prepare": "husky"

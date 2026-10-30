@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Snackbar, Text } from 'react-native-paper';
 
+import { MutedText } from '@/components/ui/muted-text';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { STOCK_ROUTE } from '@/constants/routes';
 import { useIsOffline } from '@/hooks/use-is-offline';
@@ -114,7 +115,7 @@ export default function OAuth2LinkConfirmationScreen() {
       ) : null}
 
       {isOffline ? (
-        <Text>Tu es hors ligne. Ta decision sera synchronisee des que la connexion revient.</Text>
+        <MutedText>Tu es hors ligne. Ta decision sera synchronisee des que la connexion revient.</MutedText>
       ) : null}
 
       <Button

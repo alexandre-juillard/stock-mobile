@@ -1,6 +1,9 @@
 import { type ComponentProps } from 'react';
-import { StyleSheet, View, type ViewStyle } from 'react-native';
-import { Text, TextInput, useTheme } from 'react-native-paper';
+import { View, type ViewStyle } from 'react-native';
+import { Text, TextInput } from 'react-native-paper';
+
+import { radius, spacing } from '@/constants/theme';
+import { makeStyles } from '@/hooks/use-app-theme';
 
 interface FormTextFieldProps extends Omit<ComponentProps<typeof TextInput>, 'label'> {
   label: string;
@@ -8,16 +11,17 @@ interface FormTextFieldProps extends Omit<ComponentProps<typeof TextInput>, 'lab
 }
 
 export function FormTextField({ label, containerStyle, ...textInputProps }: FormTextFieldProps) {
-  const theme = useTheme();
+  const styles = useStyles();
 
   return (
     <View style={[styles.container, containerStyle]}>
-      <Text variant="labelLarge" style={[styles.label, { color: theme.colors.onSurface }]}>
+      <Text variant="labelLarge" style={styles.label}>
         {label}
       </Text>
       <TextInput
         mode="outlined"
         placeholder={label}
+        accessibilityLabel={label}
         outlineStyle={styles.outline}
         style={styles.input}
         {...textInputProps}
@@ -26,18 +30,18 @@ export function FormTextField({ label, containerStyle, ...textInputProps }: Form
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   container: {
-    gap: 6,
+    gap: spacing.xs + 2,
   },
   label: {
+    color: colors.onSurface,
     fontWeight: '600',
   },
   input: {
-    backgroundColor: 'transparent',
+    backgroundColor: colors.surface,
   },
   outline: {
-    borderRadius: 10,
+    borderRadius: radius.input,
   },
-});
-
+}));

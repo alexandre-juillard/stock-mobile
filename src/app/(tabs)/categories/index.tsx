@@ -1,10 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import {
   Button,
   Card,
@@ -18,8 +17,15 @@ import {
   TextInput,
 } from 'react-native-paper';
 
+import { DangerButton } from '@/components/ui/danger-button';
+import { MutedText } from '@/components/ui/muted-text';
+import { PendingSyncCard } from '@/components/ui/pending-sync-card';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { StateMessage } from '@/components/ui/state-message';
+import { brandColors } from '@/constants/colors';
 import { STOCK_ROUTE } from '@/constants/routes';
+import { radius, spacing } from '@/constants/theme';
+import { makeStyles } from '@/hooks/use-app-theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import {
   useCreateCategory,
@@ -37,11 +43,11 @@ import {
   type EnqueuePendingCategoryActionInput,
 } from '@/services/offline/categories-queue';
 import { shouldQueueAfterError } from '@/services/offline/offline-queue';
+import { getReadableTextColor } from '@/utils/color-contrast';
 import { mapErrorToUi } from '@/utils/error-mapper';
 import { categoryFormSchema, type CategoryFormValues } from '@/utils/validation';
 
-const DEFAULT_CATEGORY_COLOR = '#2D6A4F';
-const DANGER_COLOR = '#D90429';
+const DEFAULT_CATEGORY_COLOR = brandColors.green;
 
 const CATEGORY_COLOR_PRESETS = [
   '#2D6A4F',
@@ -143,6 +149,7 @@ export default function CategoriesScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
+  const styles = useStyles();
 
   const [dialogMode, setDialogMode] = useState<CategoryDialogMode | null>(null);
   const [editingCategory, setEditingCategory] = useState<CategoryResponse | null>(null);
@@ -424,7 +431,7 @@ export default function CategoriesScreen() {
               <View style={[styles.colorDot, { backgroundColor: item.color ?? DEFAULT_CATEGORY_COLOR }]} />
               <View style={styles.categoryLabelBlock}>
                 <Text variant="titleMedium">{item.name ?? 'Categorie sans nom'}</Text>
-                <Text style={styles.categoryColorText}>{item.color ?? DEFAULT_CATEGORY_COLOR}</Text>
+                <MutedText>{item.color ?? DEFAULT_CATEGORY_COLOR}</MutedText>
               </View>
             </View>
 
@@ -432,20 +439,19 @@ export default function CategoriesScreen() {
               <Button mode="outlined" icon="pencil" onPress={() => openEditDialog(item)} disabled={isSubmitting}>
                 Modifier
               </Button>
-              <Button
+              <DangerButton
                 mode="outlined"
                 icon="delete-outline"
-                textColor={DANGER_COLOR}
                 onPress={() => setDeleteTarget(item)}
                 disabled={isSubmitting}>
                 Supprimer
-              </Button>
+              </DangerButton>
             </View>
           </Card.Content>
         </Card>
       );
     },
-    [isSubmitting, openEditDialog]
+    [isSubmitting, openEditDialog, styles]
   );
 
   return (
@@ -456,48 +462,32 @@ export default function CategoriesScreen() {
         Retour au stock
       </Button>
 
-      {isOffline ? (
-        <Text style={styles.offlineText}>Tu es hors ligne: les changements seront synchronises ensuite.</Text>
-      ) : null}
+      {isOffline ? <MutedText>Tu es hors ligne: les changements seront synchronises ensuite.</MutedText> : null}
 
       {pendingActionsCount > 0 ? (
-        <Card mode="outlined" style={styles.pendingCard}>
-          <Card.Content style={styles.pendingContent}>
-            <Text>{pendingActionsCount} action(s) categories en attente.</Text>
-            {!isOffline ? (
-              <Button
-                mode="outlined"
-                icon="sync"
-                loading={isSyncingQueue}
-                disabled={isSubmitting}
-                onPress={() => void syncPendingActions()}>
-                Synchroniser
-              </Button>
-            ) : null}
-          </Card.Content>
-        </Card>
+        <PendingSyncCard
+          messages={[`${pendingActionsCount} action(s) categories en attente.`]}
+          canSync={!isOffline}
+          onSync={() => void syncPendingActions()}
+          isSyncing={isSyncingQueue}
+          disabled={isSubmitting}
+        />
       ) : null}
 
       {categoriesQuery.isLoading ? (
-        <View style={styles.centeredState}>
-          <Text>Chargement des categories...</Text>
-        </View>
+        <StateMessage message="Chargement des categories..." />
       ) : categoriesQuery.isError ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color={DANGER_COLOR} />
-          <Text style={styles.errorText}>{mapErrorToUi(categoriesQuery.error).message}</Text>
+        <StateMessage tone="error" icon="alert-circle-outline" message={mapErrorToUi(categoriesQuery.error).message}>
           <Button mode="outlined" onPress={() => void handleRefresh()}>
             Reessayer
           </Button>
-        </View>
+        </StateMessage>
       ) : categories.length === 0 ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="shape-outline" size={32} color="#60646C" />
-          <Text style={styles.emptyText}>Aucune categorie pour le moment.</Text>
+        <StateMessage icon="shape-outline" message="Aucune categorie pour le moment.">
           <Button mode="contained" onPress={openCreateDialog} disabled={isSubmitting}>
             Creer une categorie
           </Button>
-        </View>
+        </StateMessage>
       ) : (
         <FlatList
           data={categories}
@@ -567,6 +557,7 @@ export default function CategoriesScreen() {
                       });
                       clearErrors('color');
                     }}
+                    selectedColor={getReadableTextColor(colorValue)}
                     style={[styles.colorChip, { backgroundColor: colorValue }]}>
                     {colorValue}
                   </Chip>
@@ -596,13 +587,12 @@ export default function CategoriesScreen() {
             <Button onPress={() => setDeleteTarget(null)} disabled={isSubmitting}>
               Annuler
             </Button>
-            <Button
-              textColor={DANGER_COLOR}
+            <DangerButton
               onPress={() => void handleDeleteCategory()}
               loading={deleteCategoryMutation.isPending}
               disabled={isSubmitting}>
               Supprimer
-            </Button>
+            </DangerButton>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -616,82 +606,58 @@ export default function CategoriesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  offlineText: {
-    opacity: 0.85,
-  },
-  pendingCard: {
-    borderRadius: 14,
-  },
-  pendingContent: {
-    gap: 8,
-  },
-  centeredState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  errorText: {
-    textAlign: 'center',
-    color: DANGER_COLOR,
-  },
-  emptyText: {
-    textAlign: 'center',
-    opacity: 0.8,
-  },
+const useStyles = makeStyles(({ colors }) => ({
   list: {
     flex: 1,
   },
   listContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
     paddingBottom: 96,
   },
   categoryCard: {
-    borderRadius: 16,
-    elevation: 0,
+    borderRadius: radius.card,
+    borderColor: colors.outlineVariant,
   },
   categoryCardContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   categoryIdentity: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm + 2,
     flex: 1,
   },
   categoryLabelBlock: {
     flex: 1,
     gap: 2,
   },
+  // La bordure garde la pastille visible quelle que soit la couleur choisie.
   colorDot: {
     width: 18,
     height: 18,
     borderRadius: 9,
-  },
-  categoryColorText: {
-    opacity: 0.75,
+    borderWidth: 1,
+    borderColor: colors.outline,
   },
   categoryActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   dialogContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   colorChipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   colorChip: {
-    borderColor: '#D8DBE2',
+    borderColor: colors.outline,
   },
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: spacing.lg,
+    bottom: spacing.lg,
   },
-});
-
+}));

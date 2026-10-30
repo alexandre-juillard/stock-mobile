@@ -2,11 +2,18 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Button, Card, Dialog, Portal, Snackbar, Text } from 'react-native-paper';
 
+import { DangerButton } from '@/components/ui/danger-button';
+import { MutedText } from '@/components/ui/muted-text';
+import { PendingSyncCard } from '@/components/ui/pending-sync-card';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { StateMessage } from '@/components/ui/state-message';
+import type { StatusTone } from '@/constants/colors';
 import { buildRecipeFormRoute, RECIPES_ROUTE } from '@/constants/routes';
+import { radius, spacing } from '@/constants/theme';
+import { makeStyles, useAppTheme } from '@/hooks/use-app-theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { useAddShoppingListItem } from '@/services/api/generated/liste-de-courses/liste-de-courses';
 import type { RecipeIngredientResponse, StockItemResponse } from '@/services/api/generated/model';
@@ -35,9 +42,6 @@ import {
 import { mapErrorToUi } from '@/utils/error-mapper';
 import { formatNumber, normalizeQuantity } from '@/utils/format';
 import { getFirstRouteParam } from '@/utils/route-params';
-
-const DANGER_COLOR = '#D90429';
-const WARNING_COLOR = '#E9C46A';
 
 type IngredientAvailabilityStatus = 'available' | 'missing' | 'insufficient' | 'unit_mismatch';
 
@@ -169,46 +173,22 @@ function buildMissingProductsFromIngredients(
   return [...byProductId.values()];
 }
 
-function getIngredientStatusVisual(status: IngredientAvailabilityStatus): {
-  icon: keyof typeof MaterialCommunityIcons.glyphMap;
-  label: string;
-  color: string;
-} {
-  if (status === 'available') {
-    return {
-      icon: 'check-circle-outline',
-      label: 'Disponible',
-      color: '#52B788',
-    };
-  }
-
-  if (status === 'missing') {
-    return {
-      icon: 'close-circle-outline',
-      label: 'Absent du stock',
-      color: DANGER_COLOR,
-    };
-  }
-
-  if (status === 'insufficient') {
-    return {
-      icon: 'alert-outline',
-      label: 'Quantite insuffisante',
-      color: WARNING_COLOR,
-    };
-  }
-
-  return {
-    icon: 'swap-horizontal',
-    label: 'Unite differente',
-    color: '#F4A261',
-  };
-}
+const INGREDIENT_STATUS_VISUALS: Record<
+  IngredientAvailabilityStatus,
+  { icon: keyof typeof MaterialCommunityIcons.glyphMap; label: string; tone: StatusTone }
+> = {
+  available: { icon: 'check-circle-outline', label: 'Disponible', tone: 'success' },
+  missing: { icon: 'close-circle-outline', label: 'Absent du stock', tone: 'danger' },
+  insufficient: { icon: 'alert-outline', label: 'Quantite insuffisante', tone: 'warning' },
+  unit_mismatch: { icon: 'swap-horizontal', label: 'Unite differente', tone: 'caution' },
+};
 
 export default function RecipeDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
+  const { status: statusColors } = useAppTheme();
+  const styles = useStyles();
 
   const { recipeId: recipeIdParam } = useLocalSearchParams<{ recipeId?: string | string[] }>();
   const recipeId = useMemo(() => getFirstRouteParam(recipeIdParam), [recipeIdParam]);
@@ -543,68 +523,54 @@ export default function RecipeDetailScreen() {
   if (!recipeId) {
     return (
       <ScreenShell title="Detail recette">
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color={DANGER_COLOR} />
-          <Text style={styles.errorText}>Identifiant recette manquant.</Text>
+        <StateMessage tone="error" icon="alert-circle-outline" message="Identifiant recette manquant.">
           <Button mode="outlined" onPress={() => router.replace(RECIPES_ROUTE)}>
             Retour aux recettes
           </Button>
-        </View>
+        </StateMessage>
       </ScreenShell>
     );
   }
 
   return (
     <ScreenShell title="Detail recette" subtitle="Verifie les ingredients et gere la consommation.">
-      {isOffline ? (
-        <Text style={styles.offlineText}>Tu es hors ligne: actions placees en file de synchronisation.</Text>
-      ) : null}
+      {isOffline ? <MutedText>Tu es hors ligne: actions placees en file de synchronisation.</MutedText> : null}
 
       {pendingActionsCount > 0 ? (
-        <Card mode="outlined" style={styles.pendingCard}>
-          <Card.Content style={styles.pendingCardContent}>
-            <Text>{pendingActionsCount} action(s) recette en attente.</Text>
-            {!isOffline ? (
-              <Button
-                mode="outlined"
-                icon="sync"
-                onPress={() => void handleSyncPendingActions()}
-                loading={isSyncingQueue}
-                disabled={isSubmitting}>
-                Synchroniser
-              </Button>
-            ) : null}
-          </Card.Content>
-        </Card>
+        <PendingSyncCard
+          messages={[`${pendingActionsCount} action(s) recette en attente.`]}
+          canSync={!isOffline}
+          onSync={() => void handleSyncPendingActions()}
+          isSyncing={isSyncingQueue}
+          disabled={isSubmitting}
+        />
       ) : null}
 
       {recipeQuery.isLoading || stockItemsQuery.isLoading ? (
-        <View style={styles.centeredState}>
-          <Text>Chargement de la recette...</Text>
-        </View>
+        <StateMessage message="Chargement de la recette..." />
       ) : recipeQuery.isError || stockItemsQuery.isError ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color={DANGER_COLOR} />
-          <Text style={styles.errorText}>{mapErrorToUi(recipeQuery.error ?? stockItemsQuery.error).message}</Text>
+        <StateMessage
+          tone="error"
+          icon="alert-circle-outline"
+          message={mapErrorToUi(recipeQuery.error ?? stockItemsQuery.error).message}>
           <Button mode="outlined" onPress={() => void handleRefresh()}>
             Reessayer
           </Button>
-        </View>
+        </StateMessage>
       ) : !recipeQuery.data?.data ? (
-        <View style={styles.centeredState}>
-          <Text style={styles.errorText}>Recette introuvable.</Text>
+        <StateMessage tone="error" icon="alert-circle-outline" message="Recette introuvable.">
           <Button mode="outlined" onPress={() => router.replace(RECIPES_ROUTE)}>
             Retour aux recettes
           </Button>
-        </View>
+        </StateMessage>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Card style={styles.headerCard}>
             <Card.Content style={styles.headerCardContent}>
               <Text variant="titleLarge">{recipeQuery.data.data.name ?? 'Recette sans nom'}</Text>
-              <Text style={styles.headerMetaText}>
+              <MutedText>
                 {ingredientAvailabilities.length} ingredient(s) dont {availableIngredientsCount} disponible(s)
-              </Text>
+              </MutedText>
             </Card.Content>
           </Card>
 
@@ -614,7 +580,7 @@ export default function RecipeDetailScreen() {
                 <Text variant="titleMedium" style={styles.conflictTitle}>
                   Conflit de consommation detecte
                 </Text>
-                <Text style={styles.conflictHintText}>
+                <Text>
                   Certains ingredients sont absents ou insuffisants. Tu peux ajouter les manquants aux
                   courses ou forcer la consommation.
                 </Text>
@@ -623,7 +589,7 @@ export default function RecipeDetailScreen() {
                   <View style={styles.conflictListBlock}>
                     <Text variant="labelLarge">Absents du stock</Text>
                     {activeConflict.missing.map((missingItem) => (
-                      <Text key={`missing-${missingItem.productId}`} style={styles.conflictListItem}>
+                      <Text key={`missing-${missingItem.productId}`}>
                         - {missingItem.name}
                       </Text>
                     ))}
@@ -634,7 +600,7 @@ export default function RecipeDetailScreen() {
                   <View style={styles.conflictListBlock}>
                     <Text variant="labelLarge">Quantite insuffisante</Text>
                     {activeConflict.insufficient.map((insufficientItem) => (
-                      <Text key={`insufficient-${insufficientItem.productId}`} style={styles.conflictListItem}>
+                      <Text key={`insufficient-${insufficientItem.productId}`}>
                         - {insufficientItem.name}: {formatNumber(insufficientItem.available)} dispo /{' '}
                         {formatNumber(insufficientItem.required)} requis
                       </Text>
@@ -672,29 +638,29 @@ export default function RecipeDetailScreen() {
               <Text variant="titleMedium">Ingredients</Text>
 
               {ingredientAvailabilities.length === 0 ? (
-                <Text style={styles.emptyText}>Cette recette ne contient pas encore d ingredients.</Text>
+                <MutedText>Cette recette ne contient pas encore d ingredients.</MutedText>
               ) : (
                 ingredientAvailabilities.map((ingredientItem, index) => {
-                  const statusVisual = getIngredientStatusVisual(ingredientItem.status);
+                  const statusVisual = INGREDIENT_STATUS_VISUALS[ingredientItem.status];
+                  const statusColor = statusColors[statusVisual.tone].content;
 
                   return (
                     <View key={`${ingredientItem.productId ?? 'unknown'}-${index}`} style={styles.ingredientRow}>
                       <MaterialCommunityIcons
                         name={statusVisual.icon}
                         size={20}
-                        color={statusVisual.color}
-                        style={styles.ingredientIcon}
+                        style={[styles.ingredientIcon, { color: statusColor }]}
                       />
                       <View style={styles.ingredientTextBlock}>
                         <Text variant="titleMedium">{ingredientItem.productName}</Text>
-                        <Text style={styles.ingredientMetaText}>
+                        <MutedText>
                           Requis: {formatNumber(ingredientItem.requiredQuantity)} {ingredientItem.requiredUnitLabel}
-                        </Text>
-                        <Text style={styles.ingredientMetaText}>
+                        </MutedText>
+                        <MutedText>
                           Disponible: {formatNumber(ingredientItem.availableQuantity)}{' '}
                           {ingredientItem.availableUnitLabel}
-                        </Text>
-                        <Text style={[styles.ingredientStatusText, { color: statusVisual.color }]}>
+                        </MutedText>
+                        <Text style={[styles.ingredientStatusText, { color: statusColor }]}>
                           {statusVisual.label}
                         </Text>
                       </View>
@@ -724,15 +690,13 @@ export default function RecipeDetailScreen() {
                 Editer la recette
               </Button>
 
-              <Button
+              <DangerButton
                 mode="contained"
                 icon="delete-outline"
-                buttonColor={DANGER_COLOR}
-                textColor="#FFFFFF"
                 onPress={() => setIsDeleteDialogVisible(true)}
                 disabled={isSubmitting}>
                 Supprimer la recette
-              </Button>
+              </DangerButton>
 
               {!isOffline ? (
                 <Button mode="text" icon="refresh" onPress={() => void handleRefresh()} disabled={isSubmitting}>
@@ -754,13 +718,12 @@ export default function RecipeDetailScreen() {
             <Button onPress={() => setIsDeleteDialogVisible(false)} disabled={isSubmitting}>
               Annuler
             </Button>
-            <Button
-              textColor={DANGER_COLOR}
+            <DangerButton
               onPress={() => void handleDeleteRecipe()}
               loading={deleteRecipeMutation.isPending}
               disabled={isSubmitting}>
               Supprimer
-            </Button>
+            </DangerButton>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -772,75 +735,45 @@ export default function RecipeDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  offlineText: {
-    opacity: 0.85,
-  },
-  pendingCard: {
-    borderRadius: 14,
-    elevation: 0,
-  },
-  pendingCardContent: {
-    gap: 8,
-  },
-  centeredState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  errorText: {
-    textAlign: 'center',
-    color: DANGER_COLOR,
-  },
+const useStyles = makeStyles(({ colors, status }) => ({
   scrollContent: {
-    gap: 12,
-    paddingBottom: 24,
+    gap: spacing.md,
+    paddingBottom: spacing.xxl,
   },
   headerCard: {
-    borderRadius: 18,
-    elevation: 1,
+    borderRadius: radius.cardLarge,
   },
   headerCardContent: {
-    gap: 4,
-  },
-  headerMetaText: {
-    opacity: 0.8,
+    gap: spacing.xs,
   },
   conflictCard: {
-    borderRadius: 16,
-    borderColor: WARNING_COLOR,
-    elevation: 0,
+    borderRadius: radius.card,
+    borderColor: status.warning.content,
+    borderWidth: 2,
   },
   conflictCardContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   conflictTitle: {
-    color: DANGER_COLOR,
-  },
-  conflictHintText: {
-    opacity: 0.9,
+    color: colors.error,
   },
   conflictListBlock: {
-    gap: 4,
-  },
-  conflictListItem: {
-    opacity: 0.9,
+    gap: spacing.xs,
   },
   conflictActionsRow: {
-    gap: 8,
+    gap: spacing.sm,
   },
   ingredientsCard: {
-    borderRadius: 16,
-    elevation: 0,
+    borderRadius: radius.card,
+    borderColor: colors.outlineVariant,
   },
   ingredientsCardContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   ingredientRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: spacing.sm,
   },
   ingredientIcon: {
     marginTop: 2,
@@ -849,21 +782,13 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  ingredientMetaText: {
-    opacity: 0.8,
-  },
   ingredientStatusText: {
     fontWeight: '500',
   },
-  emptyText: {
-    opacity: 0.8,
-  },
   actionsCard: {
-    borderRadius: 18,
-    elevation: 1,
+    borderRadius: radius.cardLarge,
   },
   actionsCardContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
-});
-
+}));

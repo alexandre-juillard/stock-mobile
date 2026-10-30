@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Button, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
 
+import { MutedText } from '@/components/ui/muted-text';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { resendConfirmationEmail } from '@/services/auth/auth-api';
@@ -153,7 +154,7 @@ export default function VerifyEmailPendingScreen() {
         <Text>Verifie ta boite mail puis confirme ton compte.</Text>
       )}
 
-      {isOffline ? <Text>Tu es hors ligne. Le renvoi sera synchronise automatiquement.</Text> : null}
+      {isOffline ? <MutedText>Tu es hors ligne. Le renvoi sera synchronise automatiquement.</MutedText> : null}
 
       <Button
         mode="contained"

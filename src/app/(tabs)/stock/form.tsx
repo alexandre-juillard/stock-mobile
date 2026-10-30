@@ -4,11 +4,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Image, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Button, Card, Chip, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
 
+import { MutedText } from '@/components/ui/muted-text';
+import { PendingSyncCard } from '@/components/ui/pending-sync-card';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { StateMessage } from '@/components/ui/state-message';
 import { STOCK_ROUTE } from '@/constants/routes';
+import { radius, spacing } from '@/constants/theme';
+import { makeStyles } from '@/hooks/use-app-theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { useGetCategories } from '@/services/api/generated/catégories/catégories';
 import type { CategoryResponse, StockItemResponse } from '@/services/api/generated/model';
@@ -157,6 +162,7 @@ export default function StockItemFormScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
+  const styles = useStyles();
 
   const { stockItemId: stockItemIdParam } =
     useLocalSearchParams<{ stockItemId?: string | string[] }>();
@@ -580,12 +586,11 @@ export default function StockItemFormScreen() {
   if (isEditing && !stockItemId) {
     return (
       <ScreenShell title="Modifier le produit">
-        <View style={styles.centeredState}>
-          <Text>Identifiant du produit manquant.</Text>
+        <StateMessage tone="error" icon="alert-circle-outline" message="Identifiant du produit manquant.">
           <Button mode="outlined" onPress={() => router.replace(STOCK_ROUTE)}>
             Retour au stock
           </Button>
-        </View>
+        </StateMessage>
       </ScreenShell>
     );
   }
@@ -599,62 +604,52 @@ export default function StockItemFormScreen() {
           : 'Cree un produit puis ajoute-le a ton stock.'
       }>
       {isOffline ? (
-        <Text style={styles.offlineText}>
-          Tu es hors ligne: l enregistrement sera place en file et synchronise plus tard.
-        </Text>
+        <MutedText>Tu es hors ligne: l enregistrement sera place en file et synchronise plus tard.</MutedText>
       ) : null}
 
       {pendingSubmissionsCount > 0 ? (
-        <Card mode="outlined" style={styles.pendingCard}>
-          <Card.Content style={styles.pendingCardContent}>
-            <Text>{pendingSubmissionsCount} operation(s) formulaire en attente de synchronisation.</Text>
-            {!isOffline ? (
-              <Button
-                mode="outlined"
-                icon="sync"
-                onPress={() => void handleFlushPendingSubmissions()}
-                loading={isSyncingQueue}
-                disabled={isSubmitting}>
-                Synchroniser maintenant
-              </Button>
-            ) : null}
-          </Card.Content>
-        </Card>
+        <PendingSyncCard
+          messages={[`${pendingSubmissionsCount} operation(s) formulaire en attente de synchronisation.`]}
+          canSync={!isOffline}
+          onSync={() => void handleFlushPendingSubmissions()}
+          isSyncing={isSyncingQueue}
+          disabled={isSubmitting}
+          syncLabel="Synchroniser maintenant"
+        />
       ) : null}
 
       {isLoadingData ? (
-        <View style={styles.centeredState}>
+        <StateMessage message="Chargement du formulaire...">
           <ActivityIndicator size="small" />
-          <Text>Chargement du formulaire...</Text>
-        </View>
+        </StateMessage>
       ) : hasLoadingError ? (
-        <View style={styles.centeredState}>
-          <Text style={styles.errorText}>
-            {mapErrorToUi(
-              categoriesQuery.error ??
-                stockItemsQuery.error ??
-                quantityTypesQuery.error ??
-                productQuery.error
-            ).message}
-          </Text>
+        <StateMessage
+          tone="error"
+          icon="alert-circle-outline"
+          message={
+            mapErrorToUi(
+              categoriesQuery.error ?? stockItemsQuery.error ?? quantityTypesQuery.error ?? productQuery.error
+            ).message
+          }>
           <Button mode="outlined" onPress={handleRetryLoading}>
             Reessayer
           </Button>
-        </View>
+        </StateMessage>
       ) : isEditing && !stockItem ? (
-        <View style={styles.centeredState}>
-          <Text style={styles.errorText}>Ce produit n&apos;est plus disponible dans ton stock.</Text>
+        <StateMessage tone="error" icon="alert-circle-outline" message="Ce produit n'est plus disponible dans ton stock.">
           <Button mode="outlined" onPress={() => router.replace(STOCK_ROUTE)}>
             Retour au stock
           </Button>
-        </View>
+        </StateMessage>
       ) : isEditing && !productId ? (
-        <View style={styles.centeredState}>
-          <Text style={styles.errorText}>Impossible de modifier ce produit: identifiant introuvable.</Text>
+        <StateMessage
+          tone="error"
+          icon="alert-circle-outline"
+          message="Impossible de modifier ce produit: identifiant introuvable.">
           <Button mode="outlined" onPress={() => router.replace(STOCK_ROUTE)}>
             Retour au stock
           </Button>
-        </View>
+        </StateMessage>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Card style={styles.formCard}>
@@ -779,7 +774,7 @@ export default function StockItemFormScreen() {
                       })}
                     </View>
                   ) : (
-                    <Text style={styles.hintText}>Choisis un type de quantite pour afficher les unites.</Text>
+                    <MutedText>Choisis un type de quantite pour afficher les unites.</MutedText>
                   )}
                   <HelperText type="error" visible={Boolean(formState.errors.baseUnitId)}>
                     {formState.errors.baseUnitId?.message}
@@ -851,7 +846,7 @@ export default function StockItemFormScreen() {
                   {selectedPhoto?.uri ? (
                     <Image source={{ uri: selectedPhoto.uri }} style={styles.photoPreview} resizeMode="cover" />
                   ) : (
-                    <Text style={styles.hintText}>Aucune photo selectionnee.</Text>
+                    <MutedText>Aucune photo selectionnee.</MutedText>
                   )}
 
                   <View style={styles.photoButtonsRow}>
@@ -898,60 +893,37 @@ export default function StockItemFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  offlineText: {
-    opacity: 0.85,
-  },
-  pendingCard: {
-    borderRadius: 14,
-  },
-  pendingCardContent: {
-    gap: 10,
-  },
-  centeredState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 32,
-  },
-  errorText: {
-    textAlign: 'center',
-    color: '#D90429',
-  },
+const useStyles = makeStyles(({ colors }) => ({
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: spacing.xxl,
   },
   formCard: {
-    borderRadius: 18,
-    elevation: 1,
+    borderRadius: radius.cardLarge,
   },
   formCardContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   chipsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-  },
-  hintText: {
-    opacity: 0.75,
+    gap: spacing.sm,
   },
   photoCard: {
-    borderRadius: 14,
-    elevation: 0,
+    borderRadius: radius.card,
+    borderColor: colors.outlineVariant,
   },
   photoContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   photoPreview: {
     width: '100%',
     height: 180,
-    borderRadius: 12,
-    backgroundColor: '#E8ECEA',
+    borderRadius: radius.input,
+    backgroundColor: colors.surfaceVariant,
   },
   photoButtonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-});
+}));
