@@ -1,6 +1,6 @@
-import { Redirect, type Href } from 'expo-router';
+import { Redirect } from 'expo-router';
 
-const LOGIN_ROUTE = '/(auth)/login' as Href;
+import { LOGIN_ROUTE } from '@/constants/routes';
 
 export default function AuthIndex() {
   return <Redirect href={LOGIN_ROUTE} />;

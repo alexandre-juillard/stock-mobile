@@ -1,6 +1,6 @@
-import { Redirect, type Href } from 'expo-router';
+import { Redirect } from 'expo-router';
 
-const RECIPES_ROUTE = '/(tabs)/recipes' as Href;
+import { RECIPES_ROUTE } from '@/constants/routes';
 
 export default function LegacyExploreRoute() {
   return <Redirect href={RECIPES_ROUTE} />;

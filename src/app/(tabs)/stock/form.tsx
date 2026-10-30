@@ -1,14 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, Chip, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { STOCK_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { useGetCategories } from '@/services/api/generated/catégories/catégories';
 import type { CategoryResponse, StockItemResponse } from '@/services/api/generated/model';
 import {
@@ -29,9 +30,9 @@ import {
   useUpdateQuantity,
   useUpdateThreshold,
 } from '@/services/api/generated/stock/stock';
-import { ApiClientError } from '@/services/api/http-client';
 import { queryKeys } from '@/services/api/query-keys';
 import { invalidateStockAndProductsQueries } from '@/services/api/query-invalidations';
+import { shouldQueueAfterError } from '@/services/offline/offline-queue';
 import {
   enqueuePendingStockFormSubmission,
   flushPendingStockFormSubmissions,
@@ -41,9 +42,9 @@ import {
   type PendingStockFormSubmission,
 } from '@/services/offline/stock-form-submissions-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
+import { parseDecimalInput } from '@/utils/format';
+import { getFirstRouteParam } from '@/utils/route-params';
 import { stockFormSchema, type StockFormValues } from '@/utils/validation';
-
-const STOCK_ROUTE = '/(tabs)/stock' as Href;
 
 const DEFAULT_FORM_VALUES: StockFormValues = {
   productName: '',
@@ -64,14 +65,6 @@ interface OptimisticEditPayload {
   expirationDate?: string;
 }
 
-function getFirstRouteParamValue(param: string | string[] | undefined): string | null {
-  if (!param) {
-    return null;
-  }
-
-  return Array.isArray(param) ? (param[0] ?? null) : param;
-}
-
 function toDateInputValue(value: string | undefined): string {
   if (!value) {
     return '';
@@ -81,16 +74,12 @@ function toDateInputValue(value: string | undefined): string {
   return trimmed.includes('T') ? trimmed.slice(0, 10) : trimmed;
 }
 
-function parseRequiredNumberInput(value: string): number {
-  return Number.parseFloat(value.replace(',', '.'));
-}
-
 function parseOptionalNumberInput(value: string | undefined): number | undefined {
   if (!value || !value.trim()) {
     return undefined;
   }
 
-  return Number.parseFloat(value.replace(',', '.'));
+  return parseDecimalInput(value);
 }
 
 function normalizeOptionalDateInput(value: string | undefined): string | undefined {
@@ -107,10 +96,6 @@ function toPendingPhotoSelection(asset: ImagePicker.ImagePickerAsset): PendingPh
     mimeType: asset.mimeType ?? null,
     fileName: asset.fileName ?? null,
   };
-}
-
-function shouldQueueSubmissionError(error: unknown): boolean {
-  return !(error instanceof ApiClientError && error.status >= 400 && error.status < 500);
 }
 
 function patchStockItemInResponse<T extends { data: StockItemResponse[] }>(
@@ -171,13 +156,12 @@ function applyOptimisticEditUpdate(queryClient: QueryClient, payload: Optimistic
 export default function StockItemFormScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
 
   const { stockItemId: stockItemIdParam } =
     useLocalSearchParams<{ stockItemId?: string | string[] }>();
-  const stockItemId = useMemo(() => getFirstRouteParamValue(stockItemIdParam), [stockItemIdParam]);
+  const stockItemId = useMemo(() => getFirstRouteParam(stockItemIdParam), [stockItemIdParam]);
   const isEditing = Boolean(stockItemId);
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const [selectedPhoto, setSelectedPhoto] = useState<PendingPhotoSelection | null>(null);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
@@ -464,7 +448,7 @@ export default function StockItemFormScreen() {
     const categoryId = values.categoryId;
     const quantityTypeId = values.quantityTypeId?.trim() ?? '';
     const baseUnitId = values.baseUnitId?.trim() ?? '';
-    const quantity = parseRequiredNumberInput(values.quantity);
+    const quantity = parseDecimalInput(values.quantity);
     const lowThreshold = parseOptionalNumberInput(values.lowThreshold);
     const expirationDate = normalizeOptionalDateInput(values.expirationDate);
 
@@ -543,7 +527,7 @@ export default function StockItemFormScreen() {
       await refreshPendingSubmissionsCount();
       router.replace(STOCK_ROUTE);
     } catch (error) {
-      if (shouldQueueSubmissionError(error)) {
+      if (shouldQueueAfterError(error)) {
         await enqueuePendingStockFormSubmission(submission);
 
         if (submission.mode === 'edit') {

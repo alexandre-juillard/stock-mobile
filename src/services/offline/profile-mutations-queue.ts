@@ -1,8 +1,10 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import { ApiClientError } from '@/services/api/http-client';
-
-const PROFILE_MUTATIONS_QUEUE_KEY = 'offline.profile.mutations.v1';
+import {
+  createPersistentQueue,
+  createQueueEntryId,
+  createQueuedEntryMeta,
+  type QueueFlushResult,
+  type QueuedEntryMeta,
+} from '@/services/offline/offline-queue';
 
 export type ProfileTheme = 'light' | 'dark';
 
@@ -12,75 +14,33 @@ export interface PendingAvatarSelection {
   fileName?: string | null;
 }
 
-interface PendingProfileMutationBase {
-  mutationId: string;
-  type: 'update_profile' | 'update_locale' | 'update_settings' | 'upload_avatar' | 'delete_avatar';
-  queuedAt: string;
-  attempts: number;
-  lastErrorMessage?: string;
+interface ProfileIdentityPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
 }
 
-interface PendingUpdateProfileMutation extends PendingProfileMutationBase {
-  type: 'update_profile';
-  payload: {
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
+interface ProfileLocalePayload {
+  locale: string;
 }
 
-interface PendingUpdateLocaleMutation extends PendingProfileMutationBase {
-  type: 'update_locale';
-  payload: {
-    locale: string;
-  };
+interface ProfileSettingsPayload {
+  theme: ProfileTheme;
+  expirationAlertDays?: number;
 }
-
-interface PendingUpdateSettingsMutation extends PendingProfileMutationBase {
-  type: 'update_settings';
-  payload: {
-    theme: ProfileTheme;
-    expirationAlertDays?: number;
-  };
-}
-
-interface PendingUploadAvatarMutation extends PendingProfileMutationBase {
-  type: 'upload_avatar';
-  payload: PendingAvatarSelection;
-}
-
-interface PendingDeleteAvatarMutation extends PendingProfileMutationBase {
-  type: 'delete_avatar';
-}
-
-type PendingProfileMutation =
-  | PendingUpdateProfileMutation
-  | PendingUpdateLocaleMutation
-  | PendingUpdateSettingsMutation
-  | PendingUploadAvatarMutation
-  | PendingDeleteAvatarMutation;
 
 export type EnqueuePendingProfileMutationInput =
   | {
       type: 'update_profile';
-      payload: {
-        firstName: string;
-        lastName: string;
-        email: string;
-      };
+      payload: ProfileIdentityPayload;
     }
   | {
       type: 'update_locale';
-      payload: {
-        locale: string;
-      };
+      payload: ProfileLocalePayload;
     }
   | {
       type: 'update_settings';
-      payload: {
-        theme: ProfileTheme;
-        expirationAlertDays?: number;
-      };
+      payload: ProfileSettingsPayload;
     }
   | {
       type: 'upload_avatar';
@@ -90,204 +50,57 @@ export type EnqueuePendingProfileMutationInput =
       type: 'delete_avatar';
     };
 
+type PendingProfileMutation = EnqueuePendingProfileMutationInput &
+  QueuedEntryMeta & {
+    mutationId: string;
+  };
+
 interface ProfileMutationSyncHandlers {
-  updateProfile: (payload: { firstName: string; lastName: string; email: string }) => Promise<void>;
-  updateLocale: (payload: { locale: string }) => Promise<void>;
-  updateSettings: (payload: { theme: ProfileTheme; expirationAlertDays?: number }) => Promise<void>;
+  updateProfile: (payload: ProfileIdentityPayload) => Promise<void>;
+  updateLocale: (payload: ProfileLocalePayload) => Promise<void>;
+  updateSettings: (payload: ProfileSettingsPayload) => Promise<void>;
   uploadAvatar: (payload: PendingAvatarSelection) => Promise<void>;
   deleteAvatar: () => Promise<void>;
 }
 
-export interface FlushPendingProfileMutationsResult {
-  status: 'none' | 'synced' | 'retry_later' | 'failed';
-  syncedCount: number;
-  retryCount: number;
-  failedCount: number;
-}
+export type FlushPendingProfileMutationsResult = QueueFlushResult;
 
-function createMutationId(): string {
-  return `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-}
-
-function toPendingProfileMutation(input: EnqueuePendingProfileMutationInput): PendingProfileMutation {
-  const baseMutation: PendingProfileMutationBase = {
-    mutationId: createMutationId(),
-    type: input.type,
-    queuedAt: new Date().toISOString(),
-    attempts: 0,
-  };
-
-  if (input.type === 'update_profile') {
-    return {
-      ...baseMutation,
-      type: 'update_profile',
-      payload: input.payload,
-    };
-  }
-
-  if (input.type === 'update_locale') {
-    return {
-      ...baseMutation,
-      type: 'update_locale',
-      payload: input.payload,
-    };
-  }
-
-  if (input.type === 'update_settings') {
-    return {
-      ...baseMutation,
-      type: 'update_settings',
-      payload: input.payload,
-    };
-  }
-
-  if (input.type === 'upload_avatar') {
-    return {
-      ...baseMutation,
-      type: 'upload_avatar',
-      payload: input.payload,
-    };
-  }
-
-  return {
-    ...baseMutation,
-    type: 'delete_avatar',
-  };
-}
-
-async function readQueue(): Promise<PendingProfileMutation[]> {
-  const rawValue = await AsyncStorage.getItem(PROFILE_MUTATIONS_QUEUE_KEY);
-  if (!rawValue) {
-    return [];
-  }
-
-  try {
-    const parsedValue = JSON.parse(rawValue);
-    if (!Array.isArray(parsedValue)) {
-      await AsyncStorage.removeItem(PROFILE_MUTATIONS_QUEUE_KEY);
-      return [];
-    }
-
-    return parsedValue as PendingProfileMutation[];
-  } catch {
-    await AsyncStorage.removeItem(PROFILE_MUTATIONS_QUEUE_KEY);
-    return [];
-  }
-}
-
-async function writeQueue(queue: PendingProfileMutation[]): Promise<void> {
-  if (queue.length === 0) {
-    await AsyncStorage.removeItem(PROFILE_MUTATIONS_QUEUE_KEY);
-    return;
-  }
-
-  await AsyncStorage.setItem(PROFILE_MUTATIONS_QUEUE_KEY, JSON.stringify(queue));
-}
+const queue = createPersistentQueue<PendingProfileMutation>('offline.profile.mutations.v1');
 
 async function executeMutation(
   mutation: PendingProfileMutation,
   syncHandlers: ProfileMutationSyncHandlers
 ): Promise<void> {
-  if (mutation.type === 'update_profile') {
-    await syncHandlers.updateProfile(mutation.payload);
-    return;
+  switch (mutation.type) {
+    case 'update_profile':
+      return syncHandlers.updateProfile(mutation.payload);
+    case 'update_locale':
+      return syncHandlers.updateLocale(mutation.payload);
+    case 'update_settings':
+      return syncHandlers.updateSettings(mutation.payload);
+    case 'upload_avatar':
+      return syncHandlers.uploadAvatar(mutation.payload);
+    case 'delete_avatar':
+      return syncHandlers.deleteAvatar();
   }
-
-  if (mutation.type === 'update_locale') {
-    await syncHandlers.updateLocale(mutation.payload);
-    return;
-  }
-
-  if (mutation.type === 'update_settings') {
-    await syncHandlers.updateSettings(mutation.payload);
-    return;
-  }
-
-  if (mutation.type === 'upload_avatar') {
-    await syncHandlers.uploadAvatar(mutation.payload);
-    return;
-  }
-
-  await syncHandlers.deleteAvatar();
 }
 
 export async function enqueuePendingProfileMutation(
   input: EnqueuePendingProfileMutationInput
 ): Promise<void> {
-  const queue = await readQueue();
-  queue.push(toPendingProfileMutation(input));
-  await writeQueue(queue);
+  await queue.append({ ...input, mutationId: createQueueEntryId(), ...createQueuedEntryMeta() });
 }
 
 export async function clearPendingProfileMutations(): Promise<void> {
-  await AsyncStorage.removeItem(PROFILE_MUTATIONS_QUEUE_KEY);
+  await queue.clear();
 }
 
 export async function getPendingProfileMutationsCount(): Promise<number> {
-  const queue = await readQueue();
-  return queue.length;
+  return queue.count();
 }
 
 export async function flushPendingProfileMutations(
   syncHandlers: ProfileMutationSyncHandlers
 ): Promise<FlushPendingProfileMutationsResult> {
-  const queue = await readQueue();
-  if (queue.length === 0) {
-    return {
-      status: 'none',
-      syncedCount: 0,
-      retryCount: 0,
-      failedCount: 0,
-    };
-  }
-
-  const retryQueue: PendingProfileMutation[] = [];
-  let syncedCount = 0;
-  let failedCount = 0;
-
-  for (const mutation of queue) {
-    try {
-      await executeMutation(mutation, syncHandlers);
-      syncedCount += 1;
-    } catch (error) {
-      if (error instanceof ApiClientError && error.status >= 400 && error.status < 500) {
-        failedCount += 1;
-        continue;
-      }
-
-      retryQueue.push({
-        ...mutation,
-        attempts: mutation.attempts + 1,
-        lastErrorMessage: error instanceof Error ? error.message : 'Erreur de synchronisation',
-      });
-    }
-  }
-
-  await writeQueue(retryQueue);
-
-  if (retryQueue.length > 0) {
-    return {
-      status: 'retry_later',
-      syncedCount,
-      retryCount: retryQueue.length,
-      failedCount,
-    };
-  }
-
-  if (failedCount > 0) {
-    return {
-      status: 'failed',
-      syncedCount,
-      retryCount: 0,
-      failedCount,
-    };
-  }
-
-  return {
-    status: 'synced',
-    syncedCount,
-    retryCount: 0,
-    failedCount: 0,
-  };
+  return queue.flush((mutation) => executeMutation(mutation, syncHandlers));
 }
-

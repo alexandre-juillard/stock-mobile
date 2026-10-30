@@ -1,10 +1,11 @@
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useMutation } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Snackbar, Text } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { STOCK_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { useAuth } from '@/services/auth/auth-context';
 import { resolveOAuth2LinkDecisionWithTokens } from '@/services/auth/auth-api';
 import {
@@ -14,27 +15,17 @@ import {
 import type { LinkDecisionRequestDecision, LoginResponse } from '@/services/api/generated/model';
 import { LinkDecisionRequestDecision as LinkDecision } from '@/services/api/generated/model';
 import { mapErrorToUi } from '@/utils/error-mapper';
-
-const STOCK_ROUTE = '/(tabs)/stock' as Href;
-
-function toSingleParam(value: string | string[] | undefined): string {
-  if (Array.isArray(value)) {
-    return value[0] ?? '';
-  }
-
-  return value ?? '';
-}
+import { getFirstRouteParam } from '@/utils/route-params';
 
 export default function OAuth2LinkConfirmationScreen() {
   const router = useRouter();
   const { setSession } = useAuth();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
   const params = useLocalSearchParams<{ linkContext?: string | string[] }>();
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
-  const linkContext = toSingleParam(params.linkContext);
+  const linkContext = getFirstRouteParam(params.linkContext) ?? '';
   const hasLinkContext = linkContext.trim().length > 0;
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   const decisionMutation = useMutation({
     mutationFn: resolveOAuth2LinkDecisionWithTokens,

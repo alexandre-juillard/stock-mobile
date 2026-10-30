@@ -4,32 +4,37 @@ import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { useNetInfo } from '@react-native-community/netinfo';
-import { Button, Checkbox, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Checkbox, HelperText, Snackbar, Text, useTheme } from 'react-native-paper';
 
+import { FormTextField } from '@/components/ui/form-text-field';
+import { PasswordTextField } from '@/components/ui/password-text-field';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import {
+  FORGOT_PASSWORD_ROUTE,
+  OAUTH_LINK_ROUTE,
+  REGISTER_ROUTE,
+  STOCK_ROUTE,
+} from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { logout as revokeRefreshToken } from '@/services/api/generated/authentification/authentification';
 import { useAuth } from '@/services/auth/auth-context';
 import { loginWithGoogle, loginWithPassword } from '@/services/auth/auth-api';
 import { flushPendingLogoutRevokes } from '@/services/offline/logout-revoke-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
+import { getFirstRouteParam } from '@/utils/route-params';
 import { loginSchema, type LoginFormValues } from '@/utils/validation';
-
-const REGISTER_ROUTE = '/(auth)/register' as Href;
-const FORGOT_PASSWORD_ROUTE = '/(auth)/forgot-password' as Href;
-const STOCK_ROUTE = '/(tabs)/stock' as Href;
-const OAUTH_LINK_ROUTE = '/(auth)/oauth2-link-confirmation' as Href;
 
 export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ notice?: string | string[] }>();
   const { setSession } = useAuth();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
+  const theme = useTheme();
 
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [dismissedRouteNoticeKey, setDismissedRouteNoticeKey] = useState<string | null>(null);
 
-  const routeNoticeKey = Array.isArray(params.notice) ? params.notice[0] : params.notice;
+  const routeNoticeKey = getFirstRouteParam(params.notice);
   const routeNotice =
     routeNoticeKey === 'reset-link-sent'
       ? 'Lien de reinitialisation envoye. Verifie ta boite mail.'
@@ -57,7 +62,6 @@ export default function LoginScreen() {
     mutationFn: loginWithGoogle,
   });
 
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
   const isSubmitting = loginMutation.isPending || googleMutation.isPending;
 
   useEffect(() => {
@@ -155,8 +159,7 @@ export default function LoginScreen() {
         control={control}
         name="email"
         render={({ field: { value, onBlur, onChange } }) => (
-          <TextInput
-            mode="outlined"
+          <FormTextField
             label="Email"
             keyboardType="email-address"
             autoCapitalize="none"
@@ -176,12 +179,9 @@ export default function LoginScreen() {
         control={control}
         name="password"
         render={({ field: { value, onBlur, onChange } }) => (
-          <TextInput
-            mode="outlined"
+          <PasswordTextField
             label="Mot de passe"
-            secureTextEntry
             autoCapitalize="none"
-            autoComplete="password"
             value={value}
             onBlur={onBlur}
             onChangeText={onChange}
@@ -199,17 +199,18 @@ export default function LoginScreen() {
         render={({ field: { value, onChange } }) => (
           <View style={styles.row}>
             <Checkbox status={value ? 'checked' : 'unchecked'} onPress={() => onChange(!value)} />
-            <Text>Se souvenir de moi</Text>
+            <Text style={{ color: theme.colors.onSurface }}>Se souvenir de moi</Text>
           </View>
         )}
       />
 
-      <Button mode="contained" onPress={handleLogin} loading={loginMutation.isPending} disabled={isSubmitting}>
+      <Button mode="contained" onPress={() => void handleLogin()} loading={loginMutation.isPending} disabled={isSubmitting}>
         Se connecter
       </Button>
 
       <Button
         mode="outlined"
+        icon="google"
         onPress={handleGoogleLogin}
         loading={googleMutation.isPending}
         disabled={isSubmitting}>
@@ -256,6 +257,7 @@ const styles = StyleSheet.create({
   links: {
     marginTop: 8,
     gap: 8,
+    alignItems: 'center',
   },
   link: {
     color: '#2D6A4F',
@@ -264,4 +266,3 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
-

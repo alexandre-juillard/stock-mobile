@@ -1,29 +1,30 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, Snackbar, Text } from 'react-native-paper';
 
+import { FormTextField } from '@/components/ui/form-text-field';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { LOGIN_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { forgotPasswordWithEmail } from '@/services/auth/auth-api';
 import {
   enqueuePendingForgotPassword,
   flushPendingForgotPassword,
 } from '@/services/offline/forgot-password-queue';
 import { mapErrorToUi } from '@/utils/error-mapper';
+import { getFirstRouteParam } from '@/utils/route-params';
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from '@/utils/validation';
-
-const LOGIN_ROUTE = '/(auth)/login' as Href;
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string | string[] }>();
-  const netInfo = useNetInfo();
+  const isOffline = useIsOffline();
 
-  const initialEmail = Array.isArray(params.email) ? (params.email[0] ?? '') : (params.email ?? '');
+  const initialEmail = getFirstRouteParam(params.email) ?? '';
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
   const { control, handleSubmit, formState } = useForm<ForgotPasswordFormValues>({
@@ -36,8 +37,6 @@ export default function ForgotPasswordScreen() {
   const forgotPasswordMutation = useMutation({
     mutationFn: forgotPasswordWithEmail,
   });
-
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
   useEffect(() => {
     if (isOffline || forgotPasswordMutation.isPending) {
@@ -102,8 +101,7 @@ export default function ForgotPasswordScreen() {
         control={control}
         name="email"
         render={({ field: { value, onBlur, onChange } }) => (
-          <TextInput
-            mode="outlined"
+          <FormTextField
             label="Email"
             keyboardType="email-address"
             autoCapitalize="none"
@@ -125,7 +123,7 @@ export default function ForgotPasswordScreen() {
         </Text>
       ) : null}
 
-      <Button mode="contained" onPress={onSubmit} loading={forgotPasswordMutation.isPending}>
+      <Button mode="contained" onPress={() => void onSubmit()} loading={forgotPasswordMutation.isPending}>
         Envoyer le lien
       </Button>
 
@@ -153,4 +151,3 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
 });
-

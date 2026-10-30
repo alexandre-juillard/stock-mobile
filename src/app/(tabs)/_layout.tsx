@@ -1,20 +1,15 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Redirect, Tabs, type Href } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { Redirect, Tabs } from 'expo-router';
 
+import { FullScreenLoader } from '@/components/ui/full-screen-loader';
+import { LOGIN_ROUTE } from '@/constants/routes';
 import { useAuth } from '@/services/auth/auth-context';
-
-const LOGIN_ROUTE = '/(auth)/login' as Href;
 
 export default function TabsLayout() {
   const { isAuthenticated, isBootstrapping } = useAuth();
 
   if (isBootstrapping) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <FullScreenLoader />;
   }
 
   if (!isAuthenticated) {
@@ -32,7 +27,7 @@ export default function TabsLayout() {
         options={{
           title: 'Stock',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="fridge-outline" color={color} size={size} />
+            <MaterialCommunityIcons name="fridge-outline" style={{ color }} size={size} />
           ),
         }}
       />
@@ -47,7 +42,7 @@ export default function TabsLayout() {
         options={{
           title: 'Recettes',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="chef-hat" color={color} size={size} />
+            <MaterialCommunityIcons name="chef-hat" style={{ color }} size={size} />
           ),
         }}
       />
@@ -56,7 +51,7 @@ export default function TabsLayout() {
         options={{
           title: 'Courses',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cart-outline" color={color} size={size} />
+            <MaterialCommunityIcons name="cart-outline" style={{ color }} size={size} />
           ),
         }}
       />
@@ -65,11 +60,10 @@ export default function TabsLayout() {
         options={{
           title: 'Profil',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account-circle-outline" color={color} size={size} />
+            <MaterialCommunityIcons name="account-circle-outline" style={{ color }} size={size} />
           ),
         }}
       />
     </Tabs>
   );
 }
-

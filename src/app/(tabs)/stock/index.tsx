@@ -1,29 +1,22 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNetInfo } from '@react-native-community/netinfo';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { Button, Card, Chip, FAB, Searchbar, Text } from 'react-native-paper';
 
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { StockStatusBadge } from '@/components/ui/stock-status-badge';
+import { buildStockItemRoute, CATEGORIES_ROUTE, STOCK_FORM_ROUTE } from '@/constants/routes';
+import { useIsOffline } from '@/hooks/use-is-offline';
 import { useGetCategories } from '@/services/api/generated/catégories/catégories';
 import type { CategoryResponse, StockItemResponse } from '@/services/api/generated/model';
 import { getListStockItemsQueryOptions } from '@/services/api/generated/stock/stock';
 import { mapErrorToUi } from '@/utils/error-mapper';
 
-const ADD_PRODUCT_ROUTE = '/(tabs)/stock/form' as Href;
-const MANAGE_CATEGORIES_ROUTE = '/(tabs)/categories' as Href;
-
-function buildStockItemRoute(stockItemId: string): Href {
-  return `/(tabs)/stock/${stockItemId}` as Href;
-}
-
 export default function StockListScreen() {
   const router = useRouter();
-  const netInfo = useNetInfo();
-  const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
+  const isOffline = useIsOffline();
 
   const [searchQuery, setSearchQuery] = useState('');
   // Filtre multi-sélection : plusieurs catégories peuvent être cochées en même temps
@@ -143,7 +136,7 @@ export default function StockListScreen() {
         <FlatList
           horizontal
           data={categories}
-          keyExtractor={(category) => category.id ?? category.name ?? Math.random().toString()}
+          keyExtractor={(category, index) => category.id ?? category.name ?? String(index)}
           renderItem={({ item }) => renderCategoryChip(item)}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryList}
@@ -162,7 +155,7 @@ export default function StockListScreen() {
       <Button
         mode="text"
         icon="shape-outline"
-        onPress={() => router.push(MANAGE_CATEGORIES_ROUTE)}
+        onPress={() => router.push(CATEGORIES_ROUTE)}
         style={styles.manageCategoriesButton}>
         Gerer les categories
       </Button>
@@ -202,7 +195,7 @@ export default function StockListScreen() {
         icon="plus"
         label="Ajouter un produit"
         style={styles.fab}
-        onPress={() => router.push(ADD_PRODUCT_ROUTE)}
+        onPress={() => router.push(STOCK_FORM_ROUTE)}
       />
     </ScreenShell>
   );

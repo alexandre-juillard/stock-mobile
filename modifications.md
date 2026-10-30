@@ -13,3 +13,5 @@ Mot de passe : Azerty123!
   - il faudrait centrer "Creer un compte" et "Mot de passe oublié" sur l'écran de connexion.
   - ajouter un icone sur le bouton "Continuer avec Google" pour le rendre plus visible.
   - j'ai une erreur lors de la création de compte : "fetch failed: java.netConnectException: Failed to connect to localhost/127.0.0.1:8080" à résoudre (même message à la connexion).
+- Sur tous les écrans : 
+  - lorsque le message "Authentification requise ou token invalide/expiré" apparait, il faudrait que l'utilisateur soit redirigé vers l'écran de connexion.

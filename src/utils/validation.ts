@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { parseDecimalInput } from '@/utils/format';
+
 export const loginSchema = z.object({
   email: z.string().email('Email invalide'),
   password: z.string().min(1, 'Le mot de passe est requis'),
@@ -117,7 +119,7 @@ export const recipeIngredientFormSchema = z.object({
     .refine((value) => NON_NEGATIVE_NUMBER_PATTERN.test(value), {
       message: 'Renseigne une quantite valide',
     })
-    .refine((value) => Number.parseFloat(value.replace(',', '.')) > 0, {
+    .refine((value) => parseDecimalInput(value) > 0, {
       message: 'La quantite doit etre strictement positive',
     }),
   unitId: z.string().min(1, 'L unite est requise'),
