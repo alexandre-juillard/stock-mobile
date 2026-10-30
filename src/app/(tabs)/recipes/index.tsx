@@ -1,4 +1,3 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
@@ -6,8 +5,11 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { Card, Chip, FAB, Searchbar, Text } from 'react-native-paper';
 
 import { RecipeFeasibilityBadge, type RecipeFeasibilityStatus } from '@/components/ui/recipe-feasibility-badge';
+import { MutedText } from '@/components/ui/muted-text';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { StateMessage } from '@/components/ui/state-message';
 import { buildRecipeDetailRoute, RECIPE_FORM_ROUTE } from '@/constants/routes';
+import { radius, spacing } from '@/constants/theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import type {
   RecipeDetailResponse,
@@ -201,10 +203,8 @@ export default function RecipesListScreen() {
             </View>
 
             <View style={styles.recipeMetaRow}>
-              <Text style={styles.recipeMetaText}>
-                {item.recipe.ingredientCount ?? 0} ingredient(s)
-              </Text>
-              <Text style={styles.recipeMetaText}>Creee le {formatCreatedAtLabel(item.recipe.createdAt)}</Text>
+              <MutedText>{item.recipe.ingredientCount ?? 0} ingredient(s)</MutedText>
+              <MutedText>Creee le {formatCreatedAtLabel(item.recipe.createdAt)}</MutedText>
             </View>
           </Card.Content>
         </Card>
@@ -223,9 +223,7 @@ export default function RecipesListScreen() {
 
   return (
     <ScreenShell title="Recettes" subtitle="Retrouve tes recettes et vois celles realisables avec ton stock.">
-      {isOffline ? (
-        <Text style={styles.offlineText}>Tu es hors ligne: affichage du dernier etat synchronise.</Text>
-      ) : null}
+      {isOffline ? <MutedText>Tu es hors ligne: affichage du dernier etat synchronise.</MutedText> : null}
 
       <Searchbar
         placeholder="Rechercher une recette"
@@ -256,27 +254,26 @@ export default function RecipesListScreen() {
       </View>
 
       {hasDetailsError ? (
-        <Text style={styles.detailsErrorText}>
+        <MutedText>
           Le statut &quot;realisable&quot; est temporairement indisponible pour certaines recettes.
-        </Text>
+        </MutedText>
       ) : null}
 
       {isInitialLoading ? (
-        <View style={styles.centeredState}>
-          <Text>Chargement de tes recettes...</Text>
-        </View>
+        <StateMessage message="Chargement de tes recettes..." />
       ) : hasBlockingError ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#D90429" />
-          <Text style={styles.errorText}>{mapErrorToUi(recipesQuery.error ?? stockItemsQuery.error).message}</Text>
-        </View>
+        <StateMessage
+          tone="error"
+          icon="alert-circle-outline"
+          message={mapErrorToUi(recipesQuery.error ?? stockItemsQuery.error).message}
+        />
       ) : filteredRecipes.length === 0 ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="chef-hat" size={32} color="#60646C" />
-          <Text style={styles.emptyText}>
-            {recipes.length === 0 ? 'Aucune recette pour le moment.' : 'Aucune recette ne correspond a tes filtres.'}
-          </Text>
-        </View>
+        <StateMessage
+          icon="chef-hat"
+          message={
+            recipes.length === 0 ? 'Aucune recette pour le moment.' : 'Aucune recette ne correspond a tes filtres.'
+          }
+        />
       ) : (
         <FlatList
           data={filteredRecipes}
@@ -299,53 +296,32 @@ export default function RecipesListScreen() {
 }
 
 const styles = StyleSheet.create({
-  offlineText: {
-    opacity: 0.8,
-  },
   searchbar: {
     elevation: 0,
   },
   filtersRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-  },
-  detailsErrorText: {
-    opacity: 0.85,
-  },
-  centeredState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  errorText: {
-    textAlign: 'center',
-    color: '#D90429',
-  },
-  emptyText: {
-    textAlign: 'center',
-    opacity: 0.8,
+    gap: spacing.sm,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    gap: 8,
+    gap: spacing.sm,
     paddingBottom: 96,
   },
   recipeCard: {
-    elevation: 1,
-    borderRadius: 18,
+    borderRadius: radius.cardLarge,
   },
   recipeCardContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   recipeHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.sm,
   },
   recipeName: {
     flex: 1,
@@ -354,15 +330,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-  },
-  recipeMetaText: {
-    opacity: 0.75,
+    gap: spacing.sm,
   },
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: spacing.lg,
+    bottom: spacing.lg,
   },
 });
-

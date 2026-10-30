@@ -33,6 +33,7 @@ npm install
 npm run start
 npm run typecheck
 npm run lint
+npm run check:contrast
 ```
 
 Apres une mise a jour du SDK Expo, arreter le serveur Metro existant et le

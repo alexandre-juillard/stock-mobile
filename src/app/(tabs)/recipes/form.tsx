@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import {
   Button,
   Card,
@@ -17,8 +17,14 @@ import {
   TextInput,
 } from 'react-native-paper';
 
+import { DangerButton } from '@/components/ui/danger-button';
+import { MutedText } from '@/components/ui/muted-text';
+import { PendingSyncCard } from '@/components/ui/pending-sync-card';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { StateMessage } from '@/components/ui/state-message';
 import { RECIPES_ROUTE } from '@/constants/routes';
+import { radius, spacing } from '@/constants/theme';
+import { makeStyles } from '@/hooks/use-app-theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import type {
   ProductResponse,
@@ -246,6 +252,7 @@ export default function RecipeFormScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
+  const styles = useStyles();
 
   const { recipeId: recipeIdParam } = useLocalSearchParams<{ recipeId?: string | string[] }>();
   const recipeId = useMemo(() => getFirstRouteParam(recipeIdParam), [recipeIdParam]);
@@ -687,50 +694,36 @@ export default function RecipeFormScreen() {
       title={isEditing ? 'Modifier la recette' : 'Creer une recette'}
       subtitle="Definis le nom et les ingredients de ta recette.">
       {isOffline ? (
-        <Text style={styles.offlineText}>
-          Tu es hors ligne: les changements sont enregistres puis synchronises ensuite.
-        </Text>
+        <MutedText>Tu es hors ligne: les changements sont enregistres puis synchronises ensuite.</MutedText>
       ) : null}
 
       {pendingSubmissionsCount > 0 ? (
-        <Card mode="outlined" style={styles.pendingCard}>
-          <Card.Content style={styles.pendingCardContent}>
-            <Text>{pendingSubmissionsCount} soumission(s) recette en attente.</Text>
-            {!isOffline ? (
-              <Button
-                mode="outlined"
-                icon="sync"
-                onPress={() => void handleSyncPendingSubmissions()}
-                loading={isSyncingQueue}
-                disabled={isSubmitting}>
-                Synchroniser
-              </Button>
-            ) : null}
-          </Card.Content>
-        </Card>
+        <PendingSyncCard
+          messages={[`${pendingSubmissionsCount} soumission(s) recette en attente.`]}
+          canSync={!isOffline}
+          onSync={() => void handleSyncPendingSubmissions()}
+          isSyncing={isSyncingQueue}
+          disabled={isSubmitting}
+        />
       ) : null}
 
       {isLoadingData ? (
-        <View style={styles.centeredState}>
-          <Text>Chargement du formulaire...</Text>
-        </View>
+        <StateMessage message="Chargement du formulaire..." />
       ) : hasLoadingError ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#D90429" />
-          <Text style={styles.errorText}>
-            {mapErrorToUi(productsQuery.error ?? stockItemsQuery.error ?? recipeQuery.error).message}
-          </Text>
+        <StateMessage
+          tone="error"
+          icon="alert-circle-outline"
+          message={mapErrorToUi(productsQuery.error ?? stockItemsQuery.error ?? recipeQuery.error).message}>
           <Button mode="outlined" onPress={() => void handleRefreshData()}>
             Reessayer
           </Button>
-        </View>
+        </StateMessage>
       ) : isEditing && !recipeQuery.data?.data ? (
-        <View style={styles.centeredState}>
-          <Text style={styles.errorText}>Recette introuvable.</Text>
+        <StateMessage tone="error" icon="alert-circle-outline" message="Recette introuvable.">
           <Button mode="outlined" onPress={() => router.replace(RECIPES_ROUTE)}>
             Retour aux recettes
           </Button>
-        </View>
+        </StateMessage>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Card style={styles.formCard}>
@@ -761,7 +754,7 @@ export default function RecipeFormScreen() {
               </View>
 
               {fields.length === 0 ? (
-                <Text style={styles.emptyIngredientsText}>Ajoute ton premier ingredient.</Text>
+                <MutedText>Ajoute ton premier ingredient.</MutedText>
               ) : (
                 fields.map((field, index) => {
                   const ingredient = watchedIngredients[index];
@@ -775,11 +768,11 @@ export default function RecipeFormScreen() {
                         <View style={styles.ingredientMainRow}>
                           <View style={styles.ingredientTextBlock}>
                             <Text variant="titleMedium">{ingredient.productName}</Text>
-                            <Text style={styles.ingredientMetaText}>
+                            <MutedText>
                               {formatNumber(parseDecimalInput(ingredient.quantity), 3)} {ingredient.unitLabel}
-                            </Text>
+                            </MutedText>
                           </View>
-                          <MaterialCommunityIcons name="food-variant" size={18} color="#60646C" />
+                          <MaterialCommunityIcons name="food-variant" size={18} style={styles.ingredientIcon} />
                         </View>
 
                         <View style={styles.ingredientActionsRow}>
@@ -790,14 +783,13 @@ export default function RecipeFormScreen() {
                             disabled={isSubmitting}>
                             Modifier
                           </Button>
-                          <Button
+                          <DangerButton
                             mode="outlined"
                             icon="delete-outline"
-                            textColor="#D90429"
                             onPress={() => handleRemoveIngredient(index)}
                             disabled={isSubmitting}>
                             Retirer
-                          </Button>
+                          </DangerButton>
                         </View>
                       </Card.Content>
                     </Card>
@@ -849,7 +841,7 @@ export default function RecipeFormScreen() {
 
             <View style={styles.optionsWrap}>
               {filteredProductOptions.length === 0 ? (
-                <Text style={styles.hintText}>Aucun produit disponible pour ce filtre.</Text>
+                <MutedText>Aucun produit disponible pour ce filtre.</MutedText>
               ) : (
                 filteredProductOptions.map((product) => {
                   if (!product.id) {
@@ -892,11 +884,13 @@ export default function RecipeFormScreen() {
 
             <Text variant="labelLarge">Unite</Text>
             {!ingredientDialog?.productId ? (
-              <Text style={styles.hintText}>Choisis un produit pour afficher les unites.</Text>
+              <MutedText>Choisis un produit pour afficher les unites.</MutedText>
             ) : unitsByTypeQuery.isLoading ? (
-              <Text style={styles.hintText}>Chargement des unites...</Text>
+              <MutedText>Chargement des unites...</MutedText>
             ) : unitsByTypeQuery.isError ? (
-              <Text style={styles.errorText}>Impossible de charger les unites pour ce produit.</Text>
+              <HelperText type="error" visible>
+                Impossible de charger les unites pour ce produit.
+              </HelperText>
             ) : (
               <View style={styles.optionsWrap}>
                 {unitOptions.map((unitOption) => {
@@ -935,80 +929,52 @@ export default function RecipeFormScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  offlineText: {
-    opacity: 0.85,
-  },
-  pendingCard: {
-    borderRadius: 14,
-    elevation: 0,
-  },
-  pendingCardContent: {
-    gap: 8,
-  },
-  centeredState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 32,
-  },
-  errorText: {
-    textAlign: 'center',
-    color: '#D90429',
-  },
+const useStyles = makeStyles(({ colors }) => ({
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: spacing.xxl,
   },
   formCard: {
-    borderRadius: 18,
-    elevation: 1,
+    borderRadius: radius.cardLarge,
   },
   formCardContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   ingredientsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  emptyIngredientsText: {
-    opacity: 0.8,
-  },
   ingredientCard: {
-    borderRadius: 14,
-    elevation: 0,
+    borderRadius: radius.card,
+    borderColor: colors.outlineVariant,
   },
   ingredientCardContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   ingredientMainRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.sm,
   },
   ingredientTextBlock: {
     flex: 1,
     gap: 2,
   },
-  ingredientMetaText: {
-    opacity: 0.8,
+  ingredientIcon: {
+    color: colors.onSurfaceVariant,
   },
   ingredientActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.sm,
   },
   dialogContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
-  hintText: {
-    opacity: 0.8,
-  },
-});
-
+}));

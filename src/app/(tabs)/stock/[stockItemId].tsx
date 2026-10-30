@@ -2,12 +2,17 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Dialog, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Image, ScrollView, View } from 'react-native';
+import { Button, Card, Dialog, HelperText, Portal, Snackbar, Text, TextInput } from 'react-native-paper';
 
+import { DangerButton } from '@/components/ui/danger-button';
+import { MutedText } from '@/components/ui/muted-text';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { StateMessage } from '@/components/ui/state-message';
 import { StockStatusBadge } from '@/components/ui/stock-status-badge';
 import { buildStockFormRoute, STOCK_ROUTE } from '@/constants/routes';
+import { radius, spacing } from '@/constants/theme';
+import { makeStyles } from '@/hooks/use-app-theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import type { StockItemResponse } from '@/services/api/generated/model';
 import type {
@@ -33,9 +38,6 @@ import {
 import { mapErrorToUi } from '@/utils/error-mapper';
 import { formatDate, formatNumber, normalizeQuantity, parseDecimalInput } from '@/utils/format';
 import { getFirstRouteParam } from '@/utils/route-params';
-
-const OUTLINED_BORDER_COLOR = '#D8DBE2';
-const DANGER_COLOR = '#D90429';
 
 interface StockProductWithPhotoUrl {
   photoUrl?: string;
@@ -140,6 +142,7 @@ export default function StockItemDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
+  const styles = useStyles();
 
   const { stockItemId: stockItemIdParam } =
     useLocalSearchParams<{ stockItemId?: string | string[] }>();
@@ -414,13 +417,11 @@ export default function StockItemDetailScreen() {
   if (!stockItemId) {
     return (
       <ScreenShell title="Detail produit">
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color={DANGER_COLOR} />
-          <Text style={styles.errorText}>Identifiant du produit manquant.</Text>
+        <StateMessage tone="error" icon="alert-circle-outline" message="Identifiant du produit manquant.">
           <Button mode="outlined" onPress={() => router.replace(STOCK_ROUTE)}>
             Retour au stock
           </Button>
-        </View>
+        </StateMessage>
       </ScreenShell>
     );
   }
@@ -430,39 +431,29 @@ export default function StockItemDetailScreen() {
       title="Detail produit"
       subtitle="Consulte les infos de ton produit et gere les actions rapides, meme hors ligne.">
       {isOffline ? (
-        <Text style={styles.offlineText}>
-          Tu es hors ligne: tes actions sont appliquees localement puis synchronisees ensuite.
-        </Text>
+        <MutedText>Tu es hors ligne: tes actions sont appliquees localement puis synchronisees ensuite.</MutedText>
       ) : null}
 
       {pendingActionsCount > 0 ? (
-        <Text style={styles.pendingText}>
-          {pendingActionsCount} action(s) en attente de synchronisation pour ce produit.
-        </Text>
+        <MutedText>{pendingActionsCount} action(s) en attente de synchronisation pour ce produit.</MutedText>
       ) : null}
 
       {stockItemsQuery.isLoading ? (
-        <View style={styles.centeredState}>
-          <Text>Chargement du produit...</Text>
-        </View>
+        <StateMessage message="Chargement du produit..." />
       ) : stockItemsQuery.isError ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color={DANGER_COLOR} />
-          <Text style={styles.errorText}>{mapErrorToUi(stockItemsQuery.error).message}</Text>
+        <StateMessage tone="error" icon="alert-circle-outline" message={mapErrorToUi(stockItemsQuery.error).message}>
           {!isOffline ? (
             <Button mode="outlined" onPress={() => void handleRefresh()}>
               Reessayer
             </Button>
           ) : null}
-        </View>
+        </StateMessage>
       ) : !stockItem ? (
-        <View style={styles.centeredState}>
-          <MaterialCommunityIcons name="fridge-off-outline" size={32} color="#60646C" />
-          <Text style={styles.emptyText}>Ce produit n&apos;est plus present dans ton stock.</Text>
+        <StateMessage icon="fridge-off-outline" message="Ce produit n'est plus present dans ton stock.">
           <Button mode="outlined" onPress={() => router.replace(STOCK_ROUTE)}>
             Retour au stock
           </Button>
-        </View>
+        </StateMessage>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Card style={styles.headerCard}>
@@ -473,34 +464,26 @@ export default function StockItemDetailScreen() {
                 </Text>
                 {stockItem.status ? <StockStatusBadge status={stockItem.status} /> : null}
               </View>
-              <Text variant="bodyMedium" style={styles.subtitleText}>
-                {categoryLabel}
-              </Text>
+              <MutedText variant="bodyMedium">{categoryLabel}</MutedText>
             </Card.Content>
           </Card>
 
-          <Card mode="outlined" style={styles.infoCard}>
+          <Card mode="outlined" style={styles.outlinedCard}>
             <Card.Content style={styles.infoContent}>
               <View style={styles.infoRow}>
-                <Text variant="labelLarge" style={styles.infoLabel}>
-                  Quantite
-                </Text>
+                <MutedText variant="labelLarge">Quantite</MutedText>
                 <Text variant="bodyLarge" style={styles.infoValue}>
                   {quantityLabel}
                 </Text>
               </View>
               <View style={styles.infoRow}>
-                <Text variant="labelLarge" style={styles.infoLabel}>
-                  Seuil bas
-                </Text>
+                <MutedText variant="labelLarge">Seuil bas</MutedText>
                 <Text variant="bodyLarge" style={styles.infoValue}>
                   {thresholdLabel}
                 </Text>
               </View>
               <View style={styles.infoRow}>
-                <Text variant="labelLarge" style={styles.infoLabel}>
-                  Expiration
-                </Text>
+                <MutedText variant="labelLarge">Expiration</MutedText>
                 <Text variant="bodyLarge" style={styles.infoValue}>
                   {expirationLabel}
                 </Text>
@@ -508,22 +491,20 @@ export default function StockItemDetailScreen() {
             </Card.Content>
           </Card>
 
-          <Card mode="outlined" style={styles.photoCard}>
+          <Card mode="outlined" style={styles.outlinedCard}>
             <Card.Content style={styles.photoContent}>
-              <Text variant="labelLarge" style={styles.infoLabel}>
-                Photo
-              </Text>
+              <MutedText variant="labelLarge">Photo</MutedText>
               {photoUri ? (
                 <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" />
               ) : (
                 <View style={styles.photoPlaceholder}>
-                  <MaterialCommunityIcons name="image-off-outline" size={28} color="#60646C" />
-                  <Text variant="bodyMedium" style={styles.photoPlaceholderText}>
+                  <MaterialCommunityIcons name="image-off-outline" size={28} style={styles.placeholderIcon} />
+                  <Text variant="bodyMedium" style={styles.centeredText}>
                     Aucune photo disponible
                   </Text>
-                  <Text variant="labelSmall" style={styles.photoPlaceholderHint}>
+                  <MutedText variant="labelSmall" style={styles.centeredText}>
                     Tu pourras en ajouter une dans l&apos;ecran d&apos;edition.
-                  </Text>
+                  </MutedText>
                 </View>
               )}
             </Card.Content>
@@ -551,15 +532,13 @@ export default function StockItemDetailScreen() {
                 Editer le produit
               </Button>
 
-              <Button
+              <DangerButton
                 mode="contained"
                 icon="check-circle-outline"
-                buttonColor={DANGER_COLOR}
-                textColor="#FFFFFF"
                 onPress={() => setIsConsumeDialogVisible(true)}
                 disabled={isActionPending}>
                 Marquer consomme
-              </Button>
+              </DangerButton>
 
               {!isOffline ? (
                 <Button
@@ -587,7 +566,9 @@ export default function StockItemDetailScreen() {
               error={Boolean(quantityFieldError)}
               style={styles.dialogInput}
             />
-            {quantityFieldError ? <Text style={styles.dialogErrorText}>{quantityFieldError}</Text> : null}
+            <HelperText type="error" visible={Boolean(quantityFieldError)}>
+              {quantityFieldError}
+            </HelperText>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setIsQuantityDialogVisible(false)}>Annuler</Button>
@@ -609,12 +590,9 @@ export default function StockItemDetailScreen() {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setIsConsumeDialogVisible(false)}>Annuler</Button>
-            <Button
-              textColor={DANGER_COLOR}
-              onPress={() => void handleConsume()}
-              loading={deleteStockItemMutation.isPending}>
+            <DangerButton onPress={() => void handleConsume()} loading={deleteStockItemMutation.isPending}>
               Confirmer
-            </Button>
+            </DangerButton>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -625,117 +603,80 @@ export default function StockItemDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  offlineText: {
-    opacity: 0.85,
-  },
-  pendingText: {
-    opacity: 0.85,
-  },
-  centeredState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  errorText: {
-    color: DANGER_COLOR,
-    textAlign: 'center',
-  },
-  emptyText: {
-    textAlign: 'center',
-    opacity: 0.8,
-  },
+const useStyles = makeStyles(({ colors }) => ({
   scrollContent: {
-    gap: 12,
-    paddingBottom: 24,
+    gap: spacing.md,
+    paddingBottom: spacing.xxl,
   },
   headerCard: {
-    borderRadius: 18,
-    elevation: 1,
+    borderRadius: radius.cardLarge,
   },
   headerCardContent: {
-    gap: 6,
+    gap: spacing.xs + 2,
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   productName: {
     flex: 1,
   },
-  subtitleText: {
-    opacity: 0.8,
-  },
-  infoCard: {
-    borderRadius: 16,
-    borderColor: OUTLINED_BORDER_COLOR,
-    elevation: 0,
+  outlinedCard: {
+    borderRadius: radius.card,
+    borderColor: colors.outlineVariant,
   },
   infoContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-  },
-  infoLabel: {
-    opacity: 0.8,
+    gap: spacing.md,
   },
   infoValue: {
     flexShrink: 1,
     textAlign: 'right',
   },
-  photoCard: {
-    borderRadius: 16,
-    borderColor: OUTLINED_BORDER_COLOR,
-    elevation: 0,
-  },
   photoContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   photo: {
     width: '100%',
     height: 180,
-    borderRadius: 14,
-    backgroundColor: '#E8ECEA',
+    borderRadius: radius.card,
+    backgroundColor: colors.surfaceVariant,
   },
   photoPlaceholder: {
     height: 160,
-    borderRadius: 14,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: OUTLINED_BORDER_COLOR,
+    borderColor: colors.outline,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
   },
-  photoPlaceholderText: {
-    textAlign: 'center',
+  placeholderIcon: {
+    color: colors.onSurfaceVariant,
   },
-  photoPlaceholderHint: {
+  centeredText: {
     textAlign: 'center',
-    opacity: 0.7,
   },
   actionsCard: {
-    borderRadius: 18,
-    elevation: 1,
+    borderRadius: radius.cardLarge,
   },
   actionsContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   dialogContent: {
-    gap: 8,
+    gap: spacing.xs,
   },
+  // Fond identique ? celui du Dialog pour que l'encoche du libell? reste invisible.
   dialogInput: {
-    backgroundColor: 'transparent',
+    backgroundColor: colors.elevation.level3,
   },
-  dialogErrorText: {
-    color: DANGER_COLOR,
-  },
-});
+}));

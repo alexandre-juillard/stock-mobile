@@ -1,20 +1,23 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { Link, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { Button, Checkbox, HelperText, Snackbar, Text, useTheme } from 'react-native-paper';
+import { Button, Checkbox, HelperText, Snackbar } from 'react-native-paper';
 
 import { FormTextField } from '@/components/ui/form-text-field';
+import { MutedText } from '@/components/ui/muted-text';
 import { PasswordTextField } from '@/components/ui/password-text-field';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { TextLink } from '@/components/ui/text-link';
 import {
   FORGOT_PASSWORD_ROUTE,
   OAUTH_LINK_ROUTE,
   REGISTER_ROUTE,
   STOCK_ROUTE,
 } from '@/constants/routes';
+import { spacing } from '@/constants/theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { logout as revokeRefreshToken } from '@/services/api/generated/authentification/authentification';
 import { useAuth } from '@/services/auth/auth-context';
@@ -29,7 +32,6 @@ export default function LoginScreen() {
   const params = useLocalSearchParams<{ notice?: string | string[] }>();
   const { setSession } = useAuth();
   const isOffline = useIsOffline();
-  const theme = useTheme();
 
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [dismissedRouteNoticeKey, setDismissedRouteNoticeKey] = useState<string | null>(null);
@@ -197,10 +199,15 @@ export default function LoginScreen() {
         control={control}
         name="rememberMe"
         render={({ field: { value, onChange } }) => (
-          <View style={styles.row}>
-            <Checkbox status={value ? 'checked' : 'unchecked'} onPress={() => onChange(!value)} />
-            <Text style={{ color: theme.colors.onSurface }}>Se souvenir de moi</Text>
-          </View>
+          <Checkbox.Item
+            label="Se souvenir de moi"
+            status={value ? 'checked' : 'unchecked'}
+            onPress={() => onChange(!value)}
+            position="leading"
+            mode="android"
+            style={styles.checkboxItem}
+            labelStyle={styles.checkboxLabel}
+          />
         )}
       />
 
@@ -217,17 +224,11 @@ export default function LoginScreen() {
         Continuer avec Google
       </Button>
 
-      {isOffline ? (
-        <Text style={styles.offlineText}>Tu es hors ligne: la connexion necessite Internet.</Text>
-      ) : null}
+      {isOffline ? <MutedText>Tu es hors ligne: la connexion necessite Internet.</MutedText> : null}
 
       <View style={styles.links}>
-        <Link href={REGISTER_ROUTE} style={styles.link}>
-          Creer un compte
-        </Link>
-        <Link href={FORGOT_PASSWORD_ROUTE} style={styles.link}>
-          Mot de passe oublie
-        </Link>
+        <TextLink href={REGISTER_ROUTE}>Creer un compte</TextLink>
+        <TextLink href={FORGOT_PASSWORD_ROUTE}>Mot de passe oublie</TextLink>
       </View>
 
       <Snackbar
@@ -250,19 +251,15 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  checkboxItem: {
+    paddingHorizontal: 0,
+  },
+  checkboxLabel: {
+    textAlign: 'left',
   },
   links: {
-    marginTop: 8,
-    gap: 8,
+    marginTop: spacing.sm,
+    gap: spacing.xs,
     alignItems: 'center',
-  },
-  link: {
-    color: '#2D6A4F',
-  },
-  offlineText: {
-    opacity: 0.8,
   },
 });

@@ -2,10 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, RefreshControl, ScrollView, View } from 'react-native';
 import { Button, Card, HelperText, Snackbar, Switch, Text, TextInput } from 'react-native-paper';
 
+import { MutedText } from '@/components/ui/muted-text';
+import { PendingSyncCard } from '@/components/ui/pending-sync-card';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { spacing } from '@/constants/theme';
+import { makeStyles } from '@/hooks/use-app-theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { registerToken, unregisterToken } from '@/services/api/generated/notifications-push/notifications-push';
 import {
@@ -140,6 +144,7 @@ async function requestDevicePushToken(): Promise<string> {
 export default function NotificationSettingsScreen() {
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
+  const styles = useStyles();
 
   const isNativePushPlatform = Platform.OS === 'android' || Platform.OS === 'ios';
   const isExpoGoAndroid =
@@ -537,32 +542,20 @@ export default function NotificationSettingsScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => void handleRefresh()} />}>
-        {isOffline ? (
-          <Text style={styles.offlineText}>Tu es hors ligne: les preferences seront synchronisees plus tard.</Text>
-        ) : null}
+        {isOffline ? <MutedText>Tu es hors ligne: les preferences seront synchronisees plus tard.</MutedText> : null}
 
         {hasPendingActions ? (
-          <Card mode="outlined" style={styles.pendingCard}>
-            <Card.Content style={styles.pendingCardContent}>
-              {pendingSettingsMutationsCount > 0 ? (
-                <Text>{pendingSettingsMutationsCount} reglage(s) notifications en attente.</Text>
-              ) : null}
-              {pendingPushTokenActionsCount > 0 ? (
-                <Text>{pendingPushTokenActionsCount} action(s) push en attente.</Text>
-              ) : null}
-
-              {!isOffline ? (
-                <Button
-                  mode="outlined"
-                  icon="sync"
-                  onPress={() => void handleSyncQueues()}
-                  loading={isSyncingQueue}
-                  disabled={isBusy}>
-                  Synchroniser
-                </Button>
-              ) : null}
-            </Card.Content>
-          </Card>
+          <PendingSyncCard
+            messages={[
+              pendingSettingsMutationsCount > 0 &&
+                `${pendingSettingsMutationsCount} reglage(s) notifications en attente.`,
+              pendingPushTokenActionsCount > 0 && `${pendingPushTokenActionsCount} action(s) push en attente.`,
+            ]}
+            canSync={!isOffline}
+            onSync={() => void handleSyncQueues()}
+            isSyncing={isSyncingQueue}
+            disabled={isBusy}
+          />
         ) : null}
 
         {profileQuery.isError ? (
@@ -579,9 +572,9 @@ export default function NotificationSettingsScreen() {
         <Card mode="outlined">
           <Card.Content style={styles.sectionContent}>
             <Text variant="titleMedium">Alerte expiration</Text>
-            <Text style={styles.supportingText}>
+            <MutedText>
               Nombre de jours avant la date d expiration pour afficher une alerte.
-            </Text>
+            </MutedText>
 
             <TextInput
               mode="outlined"
@@ -615,11 +608,11 @@ export default function NotificationSettingsScreen() {
             <View style={styles.pushRow}>
               <View style={styles.pushTextBlock}>
                 <Text>{isPushEnabled ? 'Activees' : 'Desactivees'}</Text>
-                <Text style={styles.supportingText}>
+                <MutedText>
                   {isPushEnabled
                     ? 'Ton appareil recevra les alertes d expiration.'
                     : 'Active les notifications pour etre alerte avant expiration.'}
-                </Text>
+                </MutedText>
               </View>
 
               <Switch
@@ -629,15 +622,15 @@ export default function NotificationSettingsScreen() {
               />
             </View>
 
-            <Text style={styles.supportingText}>
+            <MutedText>
               {registeredPushToken ? 'Token appareil enregistre.' : 'Aucun token appareil enregistre.'}
-            </Text>
+            </MutedText>
             {!isPushRuntimeSupported ? (
-              <Text style={styles.supportingText}>
+              <MutedText>
                 {isExpoGoAndroid
                   ? EXPO_GO_ANDROID_PUSH_MESSAGE
                   : 'Les push ne sont pas disponibles sur cette plateforme.'}
-              </Text>
+              </MutedText>
             ) : null}
           </Card.Content>
         </Card>
@@ -650,44 +643,31 @@ export default function NotificationSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   scroll: {
     flex: 1,
   },
   content: {
-    gap: 12,
-    paddingBottom: 32,
-  },
-  offlineText: {
-    opacity: 0.85,
-  },
-  pendingCard: {
-    elevation: 0,
-  },
-  pendingCardContent: {
-    gap: 8,
+    gap: spacing.md,
+    paddingBottom: spacing.xxl + spacing.sm,
   },
   errorCardContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   errorText: {
-    color: '#D90429',
+    color: colors.error,
   },
   sectionContent: {
-    gap: 10,
-  },
-  supportingText: {
-    opacity: 0.82,
+    gap: spacing.sm + 2,
   },
   pushRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   pushTextBlock: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
-});
-
+}));

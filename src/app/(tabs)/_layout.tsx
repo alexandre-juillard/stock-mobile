@@ -3,10 +3,12 @@ import { Redirect, Tabs } from 'expo-router';
 
 import { FullScreenLoader } from '@/components/ui/full-screen-loader';
 import { LOGIN_ROUTE } from '@/constants/routes';
+import { useAppTheme } from '@/hooks/use-app-theme';
 import { useAuth } from '@/services/auth/auth-context';
 
 export default function TabsLayout() {
   const { isAuthenticated, isBootstrapping } = useAuth();
+  const { colors } = useAppTheme();
 
   if (isBootstrapping) {
     return <FullScreenLoader />;
@@ -20,7 +22,9 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#2D6A4F',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.onSurfaceVariant,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.outlineVariant },
       }}>
       <Tabs.Screen
         name="stock"

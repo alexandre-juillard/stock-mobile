@@ -1,15 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { Link, useRouter, type Href } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
-import { Button, HelperText, Snackbar, Text } from 'react-native-paper';
+import { Button, HelperText, Snackbar } from 'react-native-paper';
 
 import { FormTextField } from '@/components/ui/form-text-field';
+import { MutedText } from '@/components/ui/muted-text';
 import { PasswordTextField } from '@/components/ui/password-text-field';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { TextLink } from '@/components/ui/text-link';
 import { LOGIN_ROUTE, VERIFY_EMAIL_ROUTE } from '@/constants/routes';
+import { spacing } from '@/constants/theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { registerWithEmail } from '@/services/auth/auth-api';
 import { enqueuePendingRegister, flushPendingRegister } from '@/services/offline/register-queue';
@@ -179,15 +182,13 @@ export default function RegisterScreen() {
       </Button>
 
       {isOffline ? (
-        <Text style={styles.offlineText}>
+        <MutedText>
           Tu es hors ligne. Si tu valides, ton inscription sera synchronisee automatiquement.
-        </Text>
+        </MutedText>
       ) : null}
 
       <View style={styles.links}>
-        <Link href={LOGIN_ROUTE} style={styles.link}>
-          J&apos;ai deja un compte
-        </Link>
+        <TextLink href={LOGIN_ROUTE}>J&apos;ai deja un compte</TextLink>
       </View>
 
       <Snackbar visible={Boolean(snackbarMessage)} onDismiss={() => setSnackbarMessage(null)} duration={4000}>
@@ -199,13 +200,7 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   links: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     alignItems: 'center',
-  },
-  link: {
-    color: '#2D6A4F',
-  },
-  offlineText: {
-    opacity: 0.8,
   },
 });

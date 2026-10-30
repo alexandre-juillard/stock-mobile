@@ -4,11 +4,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, View } from 'react-native';
 import { Button, Card, Chip, HelperText, Snackbar, Text, TextInput } from 'react-native-paper';
 
+import { DangerButton } from '@/components/ui/danger-button';
+import { MutedText } from '@/components/ui/muted-text';
+import { PendingSyncCard } from '@/components/ui/pending-sync-card';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { LOGIN_ROUTE, NOTIFICATIONS_ROUTE } from '@/constants/routes';
+import { spacing } from '@/constants/theme';
+import { makeStyles, useAppTheme } from '@/hooks/use-app-theme';
 import { useIsOffline } from '@/hooks/use-is-offline';
 import { logout as revokeRefreshToken } from '@/services/api/generated/authentification/authentification';
 import {
@@ -22,6 +27,7 @@ import {
 import { resolveApiAssetUri } from '@/services/api/http-client';
 import { invalidateProfileQueries } from '@/services/api/query-invalidations';
 import { useAuth } from '@/services/auth/auth-context';
+import { applyProfileThemeOptimistically } from '@/services/theme/app-theme-provider';
 import {
   enqueuePendingLogoutRevoke,
   flushPendingLogoutRevokes,
@@ -125,6 +131,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
+  const styles = useStyles();
+  const displayedTheme: ProfileTheme = useAppTheme().dark ? 'dark' : 'light';
   const { clearSession, refreshToken } = useAuth();
 
   const profileQuery = useGetProfile();
@@ -174,7 +182,7 @@ export default function ProfileScreen() {
   );
 
   const selectedTheme: ProfileTheme =
-    themeDraft ?? (isThemeValue(profile?.theme) ? profile.theme : 'light');
+    themeDraft ?? (isThemeValue(profile?.theme) ? profile.theme : displayedTheme);
 
   const isBusy =
     isSubmittingProfile ||
@@ -420,6 +428,8 @@ export default function ProfileScreen() {
       },
     };
 
+    applyProfileThemeOptimistically(queryClient, selectedTheme);
+
     if (isOffline) {
       await enqueueProfileMutation(actionInput, 'Theme enregistre hors ligne.');
       return;
@@ -437,6 +447,7 @@ export default function ProfileScreen() {
         return;
       }
 
+      await invalidateProfileQueries(queryClient);
       setSnackbarMessage(mapErrorToUi(error).message);
     } finally {
       setIsSubmittingTheme(false);
@@ -588,32 +599,20 @@ export default function ProfileScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={() => void handleRefresh()} />}>
-        {isOffline ? (
-          <Text style={styles.offlineText}>Tu es hors ligne: les changements seront synchronises plus tard.</Text>
-        ) : null}
+        {isOffline ? <MutedText>Tu es hors ligne: les changements seront synchronises plus tard.</MutedText> : null}
 
         {hasPendingActions ? (
-          <Card mode="outlined" style={styles.pendingCard}>
-            <Card.Content style={styles.pendingCardContent}>
-              {pendingProfileMutationsCount > 0 ? (
-                <Text>{pendingProfileMutationsCount} action(s) profil en attente de synchronisation.</Text>
-              ) : null}
-              {pendingLogoutRevokesCount > 0 ? (
-                <Text>{pendingLogoutRevokesCount} revoke(s) de deconnexion en attente.</Text>
-              ) : null}
-
-              {!isOffline ? (
-                <Button
-                  mode="outlined"
-                  icon="sync"
-                  onPress={() => void handleSyncQueues()}
-                  loading={isSyncingQueue}
-                  disabled={isBusy}>
-                  Synchroniser
-                </Button>
-              ) : null}
-            </Card.Content>
-          </Card>
+          <PendingSyncCard
+            messages={[
+              pendingProfileMutationsCount > 0 &&
+                `${pendingProfileMutationsCount} action(s) profil en attente de synchronisation.`,
+              pendingLogoutRevokesCount > 0 && `${pendingLogoutRevokesCount} revoke(s) de deconnexion en attente.`,
+            ]}
+            canSync={!isOffline}
+            onSync={() => void handleSyncQueues()}
+            isSyncing={isSyncingQueue}
+            disabled={isBusy}
+          />
         ) : null}
 
         {profileQuery.isError ? (
@@ -634,7 +633,7 @@ export default function ProfileScreen() {
                 {displayAvatarUri ? (
                   <Image source={{ uri: displayAvatarUri }} style={styles.avatarImage} />
                 ) : (
-                  <MaterialCommunityIcons name="account-outline" size={36} color="#2D6A4F" />
+                  <MaterialCommunityIcons name="account-outline" size={36} style={styles.avatarIcon} />
                 )}
               </View>
 
@@ -642,11 +641,11 @@ export default function ProfileScreen() {
                 <Text variant="titleMedium" style={styles.identityName}>
                   {displayName}
                 </Text>
-                <Text>{displayEmail}</Text>
+                <MutedText>{displayEmail}</MutedText>
               </View>
             </View>
 
-            {!profile && profileQuery.isLoading ? <Text>Chargement du profil...</Text> : null}
+            {!profile && profileQuery.isLoading ? <MutedText>Chargement du profil...</MutedText> : null}
           </Card.Content>
         </Card>
 
@@ -823,14 +822,14 @@ export default function ProfileScreen() {
                 Parametres de notifications
               </Button>
 
-              <Button
+              <DangerButton
                 mode="contained"
-                buttonColor="#D90429"
+                icon="logout"
                 onPress={() => void handleLogout()}
                 loading={isLoggingOut}
                 disabled={isBusy}>
                 Se deconnecter
-              </Button>
+              </DangerButton>
             </View>
           </Card.Content>
         </Card>
@@ -843,45 +842,39 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(({ colors }) => ({
   scroll: {
     flex: 1,
   },
   content: {
-    gap: 12,
-    paddingBottom: 32,
-  },
-  offlineText: {
-    opacity: 0.85,
-  },
-  pendingCard: {
-    elevation: 0,
-  },
-  pendingCardContent: {
-    gap: 8,
+    gap: spacing.md,
+    paddingBottom: spacing.xxl + spacing.sm,
   },
   errorCardContent: {
-    gap: 8,
+    gap: spacing.sm,
   },
   errorText: {
-    color: '#D90429',
+    color: colors.error,
   },
   identityCardContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   identityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   avatarContainer: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#D8F3DC',
+    backgroundColor: colors.primaryContainer,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  avatarIcon: {
+    color: colors.onPrimaryContainer,
   },
   avatarImage: {
     width: '100%',
@@ -895,20 +888,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sectionContent: {
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   optionsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   avatarActionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   accountActions: {
-    gap: 8,
+    gap: spacing.sm,
   },
-});
-
+}));
